@@ -123,6 +123,7 @@ add_library(oas_parser STATIC
     src/parser/oas_json.c
     src/parser/oas_schema_parser.c
     src/parser/oas_doc_parser.c
+    src/parser/oas_ref.c
 )
 target_include_directories(oas_parser PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_parser PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -208,4 +209,5 @@ if(BUILD_TESTING)
     oas_add_test(test_doc tests/unit/test_doc.c oas_model)
     oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
     oas_add_test(test_jsonptr tests/unit/test_jsonptr.c oas_core)
+    oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
 endif()
