@@ -1,0 +1,51 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.exe
+
+# Build directories
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# Doxygen output
+docs/api/
+html/
+latex/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Podman/Docker
+.buildah/
+
+# Logs
+*.log
+!docs/**/*.log
+
+# Credentials / environment
+.env
+.deployment-credentials
+
+# Temporary files
+*.tmp
+.DS_Store
+
+# Archived docs
+docs/tmp/
+
+# Static analysis output
+PVS-Studio.log
+*.pvs.log

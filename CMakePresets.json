@@ -1,0 +1,225 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_STANDARD": "23",
+        "CMAKE_C_STANDARD_REQUIRED": "ON",
+        "CMAKE_C_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON"
+      },
+      "environment": {
+        "PKG_CONFIG_PATH": "/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$penv{PKG_CONFIG_PATH}"
+      }
+    },
+    {
+      "name": "clang-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang"
+      },
+      "environment": {
+        "CC": "clang"
+      }
+    },
+    {
+      "name": "gcc-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc"
+      },
+      "environment": {
+        "CC": "gcc"
+      }
+    },
+    {
+      "name": "clang-debug",
+      "displayName": "Clang Debug",
+      "description": "Clang debug build with mold linker for fast iteration",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=mold",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fuse-ld=mold"
+      }
+    },
+    {
+      "name": "clang-release",
+      "displayName": "Clang Release (ThinLTO)",
+      "description": "Clang release build with ThinLTO and lld",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld -flto=thin",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fuse-ld=lld -flto=thin"
+      }
+    },
+    {
+      "name": "clang-asan",
+      "displayName": "Clang ASan + UBSan",
+      "description": "Address and Undefined Behavior sanitizers",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_SANITIZERS": "ON",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined -fuse-ld=mold"
+      }
+    },
+    {
+      "name": "clang-msan",
+      "displayName": "Clang MSan (Clang only)",
+      "description": "Memory sanitizer for uninitialized reads",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fsanitize=memory -fno-omit-frame-pointer -g -fsanitize-memory-track-origins=2",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory -fuse-ld=lld"
+      }
+    },
+    {
+      "name": "clang-tsan",
+      "displayName": "Clang TSan",
+      "description": "Thread sanitizer for race conditions",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread -fuse-ld=mold"
+      }
+    },
+    {
+      "name": "clang-fuzz",
+      "displayName": "Clang LibFuzzer",
+      "description": "Build with LibFuzzer for fuzz testing (Clang only)",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fsanitize=fuzzer-no-link,address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld"
+      }
+    },
+    {
+      "name": "gcc-debug",
+      "displayName": "GCC Debug with -fanalyzer",
+      "description": "GCC debug build with static analyzer",
+      "inherits": "gcc-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fanalyzer -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wformat-overflow=2 -Wnull-dereference -Wjump-misses-init"
+      }
+    },
+    {
+      "name": "gcc-release",
+      "displayName": "GCC Release (Full LTO)",
+      "description": "GCC release build with full LTO for maximum optimization",
+      "inherits": "gcc-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "CMAKE_C_FLAGS": "-march=x86-64-v3 -fno-semantic-interposition"
+      }
+    },
+    {
+      "name": "gcc-asan",
+      "displayName": "GCC ASan + UBSan",
+      "description": "GCC sanitizer build for cross-compiler validation",
+      "inherits": "gcc-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "clang-debug",
+      "configurePreset": "clang-debug",
+      "jobs": 0
+    },
+    {
+      "name": "clang-release",
+      "configurePreset": "clang-release",
+      "jobs": 0
+    },
+    {
+      "name": "clang-asan",
+      "configurePreset": "clang-asan",
+      "jobs": 0
+    },
+    {
+      "name": "clang-msan",
+      "configurePreset": "clang-msan",
+      "jobs": 0
+    },
+    {
+      "name": "clang-tsan",
+      "configurePreset": "clang-tsan",
+      "jobs": 0
+    },
+    {
+      "name": "gcc-debug",
+      "configurePreset": "gcc-debug",
+      "jobs": 0
+    },
+    {
+      "name": "gcc-release",
+      "configurePreset": "gcc-release",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "clang-debug",
+      "configurePreset": "clang-debug",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "clang-asan",
+      "configurePreset": "clang-asan",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      }
+    },
+    {
+      "name": "clang-msan",
+      "configurePreset": "clang-msan",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "environment": {
+        "MSAN_OPTIONS": "halt_on_error=1"
+      }
+    },
+    {
+      "name": "gcc-debug",
+      "configurePreset": "gcc-debug",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    }
+  ]
+}

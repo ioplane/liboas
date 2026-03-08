@@ -1,0 +1,100 @@
+# clang-format configuration for liboas
+# Linux kernel style with C23 enhancements
+# Dual-compiler: Clang 22+ / GCC 15+
+
+---
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: Latest
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+IndentCaseLabels: false
+IndentPPDirectives: AfterHash
+
+# Alignment
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Right
+AlignOperands: true
+AlignTrailingComments: true
+
+# Allow
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+
+# Break
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Linux
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: true
+
+# Column limit
+ColumnLimit: 100
+
+# Comments
+ReflowComments: true
+
+# Includes
+IncludeBlocks: Preserve
+SortIncludes: CaseInsensitive
+
+# Pointers and references
+DerivePointerAlignment: false
+PointerAlignment: Right
+
+# Spaces
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Penalties (fine-tuning line breaking)
+PenaltyBreakAssignment: 10
+PenaltyBreakBeforeFirstCallParameter: 30
+PenaltyBreakComment: 10
+PenaltyBreakFirstLessLess: 0
+PenaltyBreakString: 100
+PenaltyExcessCharacter: 1000
+PenaltyReturnTypeOnItsOwnLine: 60
+
+# Security: force braces on all control flow (prevents goto-fail bugs)
+InsertBraces: true
+
+# Misc
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# C23 attributes
+AttributeMacros: ['__attribute__', '[[nodiscard]]', '[[maybe_unused]]', '[[deprecated]]']
+
+# Include ordering
+IncludeCategories:
+  - Regex: '^<liboas/'
+    Priority: 1
+  - Regex: '^<yyjson\.h>'
+    Priority: 2
+  - Regex: '^<pcre2\.h>'
+    Priority: 3
+  - Regex: '^<.*>'
+    Priority: 9
+  - Regex: '^"'
+    Priority: 10
