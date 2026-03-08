@@ -1,0 +1,29 @@
+# liboas test image
+# Based on iohttp-dev, adds project-specific test dependencies and configuration.
+#
+# Build:
+#   podman build -t liboas-test:latest -f deploy/podman/Containerfile.test .
+#
+# Run tests:
+#   podman run --rm -v ./:/workspace:Z liboas-test:latest
+#
+# Run quality pipeline:
+#   podman run --rm --security-opt seccomp=unconfined \
+#     -v ./:/workspace:Z liboas-test:latest ./scripts/quality.sh
+
+FROM localhost/iohttp-dev:latest
+
+LABEL maintainer="liboas"
+LABEL description="liboas test and CI image"
+
+WORKDIR /workspace
+
+# Copy project source
+COPY . /workspace/
+
+# Configure and build
+RUN cmake --preset clang-debug \
+    && cmake --build --preset clang-debug
+
+# Default: run full test suite
+CMD ["ctest", "--preset", "clang-debug", "--output-on-failure"]
