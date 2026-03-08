@@ -25,11 +25,13 @@ cmake --build --preset clang-debug --target docs         # Doxygen
 
 ## Dev Container
 
-- **Image**: `localhost/iohttp-dev:latest` (shared with iohttp project)
+- **Image**: `localhost/liboas-dev:latest` (based on iohttp-dev + PCRE2 + libfyaml)
+- **Containerfile**: `deploy/podman/Containerfile` (build: `podman build -t liboas-dev:latest -f deploy/podman/Containerfile deploy/podman/`)
 - **Compilers**: Clang 22.1.0 (primary), GCC 15.1.1 (gcc-toolset-15, validation)
 - **System GCC**: 14.3.1 (OL10 default)
 - **Linker**: mold (debug), lld (release)
-- **Key tools**: CMake 4.2.3, Unity 2.6.1, cppcheck, Doxygen 1.16.1
+- **Key tools**: CMake 4.2.3, Unity 2.6.1, cppcheck, Doxygen 1.16.1, PVS-Studio, CodeChecker
+- **PVS-Studio**: License in `.env` (copy from `.env.example`), CMake target `pvs-studio`
 - **ALL development/compilation MUST happen inside the podman container**
 
 ## Compiler Strategy (dual-compiler)
@@ -112,7 +114,7 @@ After completing each sprint, run the **full quality pipeline** inside the conta
 ```bash
 podman run --rm --security-opt seccomp=unconfined \
   -v /opt/projects/repositories/liboas:/workspace:Z \
-  localhost/iohttp-dev:latest bash -c "cd /workspace && ./scripts/quality.sh"
+  localhost/liboas-dev:latest bash -c "cd /workspace && ./scripts/quality.sh"
 ```
 
 ## Architecture Decisions (DO NOT CHANGE)
