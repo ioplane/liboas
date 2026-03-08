@@ -84,12 +84,17 @@ deploy/podman/      # Container configurations
 
 ## Library Stack
 
-| Library   | Version | Role                           |
-|-----------|---------|--------------------------------|
-| yyjson    | 0.12+   | JSON parsing (~2.4 GB/s)       |
-| PCRE2     | 10.40+  | Regex pattern validation       |
-| libyaml   | 0.2+    | YAML parsing (optional)        |
-| Unity     | 2.6.1   | Unit test framework            |
+| Library   | Version | Role                           | License |
+|-----------|---------|--------------------------------|---------|
+| yyjson    | 0.12+   | JSON parsing (~2.4 GB/s)       | MIT     |
+| libfyaml  | 0.9+    | YAML 1.2 parsing (optional)    | MIT     |
+| PCRE2     | 10.40+  | Regex `pattern` (default backend) | BSD   |
+| QuickJS   | latest  | ECMA-262 regex (optional, strict mode) | MIT |
+| Unity     | 2.6.1   | Unit test framework            | MIT     |
+
+**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. PCRE2 provides ~95% compatibility (default). QuickJS provides 100% ECMA-262 via embedded JS `RegExp` (optional strict mode). Abstracted via `oas_regex_backend_t` vtable.
+
+**YAML:** libfyaml (NOT libyaml). libyaml only supports YAML 1.1; OpenAPI 3.x requires YAML 1.2.
 
 ## Testing Rules
 
