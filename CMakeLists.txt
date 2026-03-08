@@ -100,10 +100,14 @@ add_library(oas_core STATIC
     src/core/oas_alloc.c
     src/core/oas_error.c
     src/core/oas_intern.c
+    src/core/oas_jsonptr.c
 )
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(oas_core PUBLIC _GNU_SOURCE)
+target_include_directories(oas_core PUBLIC ${YYJSON_INCLUDE_DIRS})
+target_link_directories(oas_core PUBLIC ${YYJSON_LIBRARY_DIRS})
+target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES})
 
 # Model library: schema and document types
 add_library(oas_model STATIC
@@ -113,7 +117,6 @@ add_library(oas_model STATIC
 target_include_directories(oas_model PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_model PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_model PUBLIC oas_core)
-target_include_directories(oas_model PUBLIC ${YYJSON_INCLUDE_DIRS})
 
 # Parser library: JSON wrapper, schema parser, doc parser (yyjson)
 add_library(oas_parser STATIC
@@ -124,9 +127,6 @@ add_library(oas_parser STATIC
 target_include_directories(oas_parser PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_parser PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_parser PUBLIC oas_core oas_model)
-target_include_directories(oas_parser PUBLIC ${YYJSON_INCLUDE_DIRS})
-target_link_directories(oas_parser PUBLIC ${YYJSON_LIBRARY_DIRS})
-target_link_libraries(oas_parser PUBLIC ${YYJSON_LIBRARIES})
 
 # ── Code quality targets ────────────────────────────────────────────────────
 
@@ -207,4 +207,5 @@ if(BUILD_TESTING)
     oas_add_test(test_schema_parser tests/unit/test_schema_parser.c oas_parser)
     oas_add_test(test_doc tests/unit/test_doc.c oas_model)
     oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
+    oas_add_test(test_jsonptr tests/unit/test_jsonptr.c oas_core)
 endif()
