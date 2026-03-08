@@ -125,15 +125,43 @@ podman run --rm --security-opt seccomp=unconfined \
 - All commits must pass: clang-format, clang-tidy, unit tests
 - **NEVER mention "Claude" or any AI assistant in commit messages, comments, or code**
 
+## Skills Reference
+
+See `.claude/skills/` for detailed guidance on:
+- **`liboas-architecture/`** — Two-layer architecture, directory layout, naming, memory model, iohttp integration (MANDATORY)
+- **`json-schema-patterns/`** — JSON Schema 2020-12 validation, type system, $ref resolution, compilation strategy (MANDATORY for src/compiler/, src/validator/)
+- **`rfc-reference/`** — RFC index with priority map, key sections for JSON, URI, HTTP, auth
+
 ## MCP Documentation (context7)
 
 Use context7 to fetch up-to-date documentation:
 - yyjson JSON: `/ibireme/yyjson`
 - CMake build: `/websites/cmake_cmake_help`
 
-## OpenAPI References
+## RFC References
 
-- OpenAPI 3.2 Specification
-- JSON Schema 2020-12 (RFC draft-bhutton-json-schema-01)
-- JSON Pointer (RFC 6901)
-- URI Reference (RFC 3986)
+Local copies in `docs/rfc/` — see `docs/rfc/README.md` for full index.
+
+**P0 — Core (must-implement):**
+- RFC 8259 — JSON
+- RFC 6901 — JSON Pointer
+- RFC 3986 — URI
+- RFC 6570 — URI Template
+- RFC 9110 — HTTP Semantics
+
+**P1 — Validation:**
+- RFC 9457 — Problem Details for HTTP APIs
+- RFC 7578 — multipart/form-data
+- RFC 2045/2046 — MIME
+- RFC 4648 — Base Encodings
+
+**P2 — Security Schemes:**
+- RFC 6749/6750 — OAuth 2.0
+- RFC 7519 — JWT
+- RFC 7515 — JWS
+- RFC 7517 — JWK
+
+**Specifications (non-RFC):**
+- OpenAPI 3.2 Specification (spec.openapis.org)
+- JSON Schema 2020-12 (draft-bhutton-json-schema)
+- YAML 1.2 Specification (yaml.org)
