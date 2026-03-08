@@ -6,7 +6,7 @@
 
 **Architecture:** Two-layer design — OAS Model (parse OpenAPI JSON/YAML into in-memory document model with $ref resolution) and Compiled Runtime (pre-compile JSON Schema 2020-12 to flat instruction arrays for zero-allocation request/response validation). Arena allocator for document lifetime. Adapter pattern for iohttp integration.
 
-**Tech Stack:** C23, yyjson 0.12+ (JSON), PCRE2 (regex), libyaml (optional YAML), Unity tests, Linux kernel 6.7+.
+**Tech Stack:** C23, yyjson 0.12+ (JSON), PCRE2 (regex default), QuickJS libregexp (ECMA-262 strict, vendored), libfyaml (optional YAML 1.2), Unity tests, Linux kernel 6.7+.
 
 **Build/test:**
 ```bash
@@ -275,7 +275,7 @@ struct oas_schema {
 
     /* String constraints */
     int64_t min_length, max_length; /* -1 = not set */
-    const char *pattern;            /* PCRE2 regex */
+    const char *pattern;            /* ECMA-262 regex (backend-agnostic) */
 
     /* Numeric constraints */
     double minimum, maximum;
@@ -330,12 +330,22 @@ struct oas_schema {
     bool read_only;
     bool write_only;
 
+    /* Discriminator (OpenAPI 3.2 polymorphism) */
+    const char *discriminator_property;         /* propertyName */
+    struct oas_discriminator_mapping *discriminator_mapping; /* mapping entries */
+    size_t discriminator_mapping_count;
+
     /* 2020-12 advanced */
     bool has_unevaluated_properties;
     oas_schema_t *unevaluated_properties;
     bool has_unevaluated_items;
     oas_schema_t *unevaluated_items;
 };
+
+typedef struct oas_discriminator_mapping {
+    const char *key;           /* mapping key */
+    const char *ref;           /* $ref to schema */
+} oas_discriminator_mapping_t;
 
 typedef struct oas_property {
     const char *name;
@@ -356,9 +366,11 @@ void test_schema_required_fields(void);
 void test_schema_composition_allof(void);
 void test_schema_ref_string(void);
 void test_schema_nullable_to_type_mask(void); /* nullable: true → add OAS_TYPE_NULL */
+void test_schema_discriminator(void);        /* discriminator property + mapping */
+void test_schema_unevaluated_properties(void);
 ```
 
-**Commit:** `feat: JSON Schema 2020-12 type representation (10 tests)`
+**Commit:** `feat: JSON Schema 2020-12 type representation (12 tests)`
 
 ---
 
@@ -527,6 +539,60 @@ void test_doc_parse_components_schemas(void);
 
 ---
 
+### Task 2.5: YAML Parsing (libfyaml, optional)
+
+**Files:**
+- Create: `src/parser/oas_yaml.h`
+- Create: `src/parser/oas_yaml.c`
+- Create: `tests/unit/test_yaml.c`
+- Modify: `CMakeLists.txt`
+
+**Implementation:**
+
+Optional YAML 1.2 parsing via libfyaml. Converts YAML to yyjson document for uniform processing.
+
+```c
+#ifdef OAS_HAVE_LIBFYAML
+[[nodiscard]] int oas_yaml_parse(const char *data, size_t len, oas_json_doc_t *out,
+                                  oas_error_list_t *errors);
+[[nodiscard]] int oas_yaml_parse_file(const char *path, oas_json_doc_t *out,
+                                       oas_error_list_t *errors);
+#endif
+
+/* Auto-detect format (JSON or YAML) by content inspection */
+[[nodiscard]] int oas_parse_auto(const char *data, size_t len, oas_json_doc_t *out,
+                                  oas_error_list_t *errors);
+```
+
+Strategy: libfyaml parses YAML to its DOM, then we walk it and build a yyjson mutable document.
+This keeps all downstream code (schema parser, doc parser) JSON-only.
+
+CMake:
+```cmake
+option(OAS_YAML "Enable YAML 1.2 parsing via libfyaml" OFF)
+if(OAS_YAML)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBFYAML REQUIRED libfyaml)
+    target_compile_definitions(oas_core PUBLIC OAS_HAVE_LIBFYAML)
+endif()
+```
+
+**Tests (8):**
+```c
+void test_yaml_parse_simple(void);           /* key: value */
+void test_yaml_parse_nested(void);           /* nested objects/arrays */
+void test_yaml_parse_multiline_string(void); /* literal/folded blocks */
+void test_yaml_parse_anchors_aliases(void);  /* YAML &anchor/*alias */
+void test_yaml_parse_invalid(void);          /* syntax error */
+void test_yaml_parse_file(void);
+void test_auto_detect_json(void);            /* starts with { */
+void test_auto_detect_yaml(void);            /* starts with openapi: */
+```
+
+**Commit:** `feat: YAML 1.2 parsing via libfyaml with auto-detect (8 tests)`
+
+---
+
 ## Sprint 3: $ref Resolution & JSON Pointer (2-3 weeks)
 
 **Goal:** Complete $ref resolution with cycle detection, JSON Pointer implementation, component references.
@@ -631,7 +697,7 @@ typedef enum : uint8_t {
     OAS_OP_CHECK_TYPE,       /* check type_mask */
     OAS_OP_CHECK_MIN_LEN,    /* string minLength */
     OAS_OP_CHECK_MAX_LEN,    /* string maxLength */
-    OAS_OP_CHECK_PATTERN,    /* PCRE2 regex match */
+    OAS_OP_CHECK_PATTERN,    /* regex backend match (PCRE2 or libregexp) */
     OAS_OP_CHECK_FORMAT,     /* format validator */
     OAS_OP_CHECK_MINIMUM,    /* numeric minimum */
     OAS_OP_CHECK_MAXIMUM,    /* numeric maximum */
@@ -715,7 +781,7 @@ Compilation walks `oas_schema_t` tree, emits flat `oas_program_t`:
 - Object: iterate required, then properties with sub-programs
 - Array: items/prefixItems sub-programs
 - Composition: allOf/anyOf/oneOf with branching
-- Pre-compile PCRE2 patterns with JIT
+- Pre-compile patterns via `oas_regex_backend_t` vtable (PCRE2 default, libregexp optional)
 
 **Tests (12):**
 ```c
@@ -789,6 +855,70 @@ void test_format_get_unknown(void);          /* returns nullptr */
 ```
 
 **Commit:** `feat: format validators — date, email, uri, uuid, ipv4/6 (14 tests)`
+
+---
+
+### Task 4.4: Regex Backend Abstraction
+
+**Files:**
+- Create: `src/core/oas_regex.h`
+- Create: `src/core/oas_regex_pcre2.c`
+- Create: `src/core/oas_regex_libregexp.c` (optional, CMake option)
+- Create: `vendor/libregexp/` (vendored from QuickJS: libregexp.c/h, libunicode.c/h, cutils.c/h)
+- Create: `vendor/libregexp/CMakeLists.txt`
+- Create: `tests/unit/test_regex.c`
+- Modify: `CMakeLists.txt`
+
+**Implementation:**
+
+Vtable abstraction for ECMA-262 `pattern` validation. Two backends.
+
+```c
+typedef struct oas_regex_backend oas_regex_backend_t;
+
+struct oas_regex_backend {
+    int (*compile)(void *ctx, const char *pattern, void **compiled);
+    bool (*match)(void *ctx, void *compiled, const char *value, size_t len);
+    void (*free_pattern)(void *ctx, void *compiled);
+    void (*destroy)(void *ctx);
+    void *ctx;
+};
+
+[[nodiscard]] oas_regex_backend_t *oas_regex_pcre2_create(void);
+void oas_regex_backend_destroy(oas_regex_backend_t *backend);
+
+#ifdef OAS_HAVE_LIBREGEXP
+[[nodiscard]] oas_regex_backend_t *oas_regex_libregexp_create(void);
+#endif
+```
+
+PCRE2 backend: `pcre2_compile()` with `PCRE2_ALT_BSUX | PCRE2_MATCH_UNSET_BACKREF`, JIT.
+libregexp backend: `lre_compile()` to bytecode, `lre_exec()` to match.
+
+CMake:
+```cmake
+option(OAS_REGEX_STRICT "Use vendored libregexp for 100% ECMA-262 compliance" OFF)
+if(OAS_REGEX_STRICT)
+    add_subdirectory(vendor/libregexp)
+    target_compile_definitions(oas_core PUBLIC OAS_HAVE_LIBREGEXP)
+endif()
+```
+
+**Tests (10):**
+```c
+void test_regex_pcre2_create(void);
+void test_regex_pcre2_compile_valid(void);
+void test_regex_pcre2_compile_invalid(void);
+void test_regex_pcre2_match_pass(void);
+void test_regex_pcre2_match_fail(void);
+void test_regex_pcre2_unicode(void);
+void test_regex_pcre2_unanchored(void);      /* patterns are unanchored per JSON Schema */
+void test_regex_pcre2_destroy(void);
+void test_regex_backend_swap(void);          /* compile with A, verify with B */
+void test_regex_vtable_null_safe(void);
+```
+
+**Commit:** `feat: regex backend vtable with PCRE2 default and libregexp optional (10 tests)`
 
 ---
 
@@ -888,10 +1018,18 @@ typedef struct {
     size_t headers_count;
 } oas_http_response_t;
 
-[[nodiscard]] int oas_validate_request(const oas_doc_t *doc,
+/* Compile all schemas in a parsed document (must call after ref resolution) */
+typedef struct oas_compiled_doc oas_compiled_doc_t;
+
+[[nodiscard]] oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc,
+                                                    oas_regex_backend_t *regex,
+                                                    oas_error_list_t *errors);
+void oas_compiled_doc_free(oas_compiled_doc_t *compiled);
+
+[[nodiscard]] int oas_validate_request(const oas_compiled_doc_t *doc,
                                         const oas_http_request_t *req,
                                         oas_validation_result_t *result);
-[[nodiscard]] int oas_validate_response(const oas_doc_t *doc,
+[[nodiscard]] int oas_validate_response(const oas_compiled_doc_t *doc,
                                          const char *path, const char *method,
                                          const oas_http_response_t *resp,
                                          oas_validation_result_t *result);
@@ -899,6 +1037,8 @@ typedef struct {
 
 **Tests (10):**
 ```c
+void test_doc_compile_all_schemas(void);
+void test_doc_compile_with_refs(void);
 void test_request_validate_body_pass(void);
 void test_request_validate_body_fail(void);
 void test_request_validate_missing_required_param(void);
@@ -911,7 +1051,7 @@ void test_response_validate_content_type(void);
 void test_request_validate_no_body_required(void);
 ```
 
-**Commit:** `feat: HTTP request/response validation against OAS spec (10 tests)`
+**Commit:** `feat: document compilation and HTTP request/response validation (12 tests)`
 
 ---
 
@@ -1164,27 +1304,30 @@ void test_roundtrip_preserves_refs(void);
 | Sprint | Duration | What | New Tests |
 |--------|----------|------|-----------|
 | S1 | 2-3 weeks | Core: arena, errors, interning, yyjson | 30 |
-| S2 | 3-4 weeks | OAS Model: schema types, parser, document | 42 |
+| S2 | 3-4 weeks | OAS Model: schema types, parser, document, YAML | 52 |
 | S3 | 2-3 weeks | $ref: JSON Pointer, resolver | 20 |
-| S4 | 3-4 weeks | Compiler: instruction set, compiler, formats | 34 |
-| S5 | 3-4 weeks | Validator: VM, request/response | 26 |
+| S4 | 3-4 weeks | Compiler: instruction set, compiler, formats, regex vtable | 44 |
+| S5 | 3-4 weeks | Validator: VM, doc compile, request/response | 28 |
 | S6 | 2-3 weeks | Path matching, JSON emitter | 18 |
 | S7 | 3-4 weeks | iohttp adapter, Scalar UI | 12 |
 | S8 | 2-3 weeks | Fuzz targets, integration tests, hardening | 8 + 6 fuzzers |
 
-**Total: ~190 tests + 6 fuzz targets across 8 sprints (~20-28 weeks)**
+**Total: ~212 tests + 6 fuzz targets across 8 sprints (~20-28 weeks)**
 
 ## Critical Files
 
 **Core infrastructure:**
 - `include/liboas/oas_alloc.h` — arena allocator
 - `include/liboas/oas_error.h` — error accumulation
-- `include/liboas/oas_schema.h` — JSON Schema types
+- `include/liboas/oas_schema.h` — JSON Schema types (with discriminator)
 - `include/liboas/oas_doc.h` — OAS document model
-- `include/liboas/oas_compiler.h` — schema compiler
+- `include/liboas/oas_compiler.h` — schema compiler + `oas_doc_compile()`
 - `include/liboas/oas_validator.h` — validation engine
 - `include/liboas/oas_emitter.h` — spec emission
 - `include/liboas/oas_parser.h` — document parser
+- `src/core/oas_regex.h` — regex backend vtable (PCRE2 + libregexp)
+- `src/parser/oas_yaml.h` — YAML 1.2 parsing (optional, libfyaml)
+- `vendor/libregexp/` — vendored QuickJS libregexp (optional)
 
 **iohttp integration:**
 - `src/adapter/oas_iohttp.h` — adapter middleware

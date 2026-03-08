@@ -49,6 +49,7 @@ src/compiler/       # Schema pre-compilation to validation bytecode
 src/validator/      # Request/response validation engine
 src/emitter/        # JSON/YAML spec emission
 src/adapter/        # iohttp integration adapter
+vendor/libregexp/   # Vendored QuickJS libregexp (optional ECMA-262 regex)
 tests/unit/         # Unity-based unit tests (test_*.c)
 tests/integration/  # Integration tests (full spec parsing + validation)
 tests/fuzz/         # LibFuzzer targets (Clang only)
@@ -89,10 +90,10 @@ deploy/podman/      # Container configurations
 | yyjson    | 0.12+   | JSON parsing (~2.4 GB/s)       | MIT     |
 | libfyaml  | 0.9+    | YAML 1.2 parsing (optional)    | MIT     |
 | PCRE2     | 10.40+  | Regex `pattern` (default backend) | BSD   |
-| QuickJS   | latest  | ECMA-262 regex (optional, strict mode) | MIT |
+| QuickJS libregexp | latest | ECMA-262 regex (optional, strict mode) | MIT |
 | Unity     | 2.6.1   | Unit test framework            | MIT     |
 
-**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. PCRE2 provides ~95% compatibility (default). QuickJS provides 100% ECMA-262 via embedded JS `RegExp` (optional strict mode). Abstracted via `oas_regex_backend_t` vtable.
+**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. PCRE2 provides ~95% compatibility (default). QuickJS `libregexp` extracted standalone (5-6 files, ~50-80KB) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()` (optional strict mode). Abstracted via `oas_regex_backend_t` vtable. Vendored in `vendor/libregexp/`.
 
 **YAML:** libfyaml (NOT libyaml). libyaml only supports YAML 1.1; OpenAPI 3.x requires YAML 1.2.
 
@@ -118,6 +119,8 @@ podman run --rm --security-opt seccomp=unconfined \
 
 - Two-layer architecture: OAS Model (parse) + Compiled Runtime (validate)
 - yyjson for JSON parsing (not cJSON, not jansson)
+- Regex via `oas_regex_backend_t` vtable (PCRE2 default, libregexp optional)
+- YAML via libfyaml (NOT libyaml), optional CMake option
 - Pure C libraries only (no C++ dependencies)
 - Linux only
 - GPLv3 license
@@ -141,6 +144,10 @@ See `.claude/skills/` for detailed guidance on:
 
 Use context7 to fetch up-to-date documentation:
 - yyjson JSON: `/ibireme/yyjson`
+- libfyaml YAML: `/pantoniou/libfyaml`
+- PCRE2 regex: `/pcre2project/pcre2`
+- QuickJS (libregexp source): `/nicot/quickjs`
+- OpenAPI spec: `/oai/openapi-specification`
 - CMake build: `/websites/cmake_cmake_help`
 
 ## RFC References
@@ -167,6 +174,7 @@ Local copies in `docs/rfc/` — see `docs/rfc/README.md` for full index.
 - RFC 7517 — JWK
 
 **Specifications (non-RFC):**
-- OpenAPI 3.2 Specification (spec.openapis.org)
-- JSON Schema 2020-12 (draft-bhutton-json-schema)
-- YAML 1.2 Specification (yaml.org)
+- OpenAPI 3.2 Specification (https://spec.openapis.org/oas/v3.2.0.html)
+- JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/json-schema-core)
+- YAML 1.2 Specification (https://yaml.org/spec/1.2.2/)
+- ECMA-262 (https://tc39.es/ecma262/) — `pattern` regex semantics

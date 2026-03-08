@@ -56,11 +56,13 @@ if(EXISTS "${UNITY_SRC}/unity.c")
     add_library(unity STATIC "${UNITY_SRC}/unity.c")
     target_include_directories(unity PUBLIC "${UNITY_INC}")
     target_compile_options(unity PRIVATE -w)
+    target_compile_definitions(unity PUBLIC UNITY_INCLUDE_DOUBLE)
     set(UNITY_FOUND TRUE)
 elseif(EXISTS "${UNITY_SRC}/src/unity.c")
     add_library(unity STATIC "${UNITY_SRC}/src/unity.c")
     target_include_directories(unity PUBLIC "${UNITY_SRC}/src")
     target_compile_options(unity PRIVATE -w)
+    target_compile_definitions(unity PUBLIC UNITY_INCLUDE_DOUBLE)
     set(UNITY_FOUND TRUE)
 else()
     message(STATUS "Unity not found — tests disabled")
@@ -85,6 +87,9 @@ macro(oas_add_test TEST_NAME TEST_SRC)
         )
         target_link_options(${TEST_NAME} PRIVATE -no-pie)
         add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+        set_tests_properties(${TEST_NAME} PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
     endif()
 endmacro()
 
@@ -100,13 +105,25 @@ target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(oas_core PUBLIC _GNU_SOURCE)
 
-# Parser library: JSON wrapper (yyjson)
+# Model library: schema and document types
+add_library(oas_model STATIC
+    src/model/oas_schema.c
+    src/model/oas_doc.c
+)
+target_include_directories(oas_model PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_model PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_model PUBLIC oas_core)
+target_include_directories(oas_model PUBLIC ${YYJSON_INCLUDE_DIRS})
+
+# Parser library: JSON wrapper, schema parser, doc parser (yyjson)
 add_library(oas_parser STATIC
     src/parser/oas_json.c
+    src/parser/oas_schema_parser.c
+    src/parser/oas_doc_parser.c
 )
 target_include_directories(oas_parser PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_parser PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(oas_parser PUBLIC oas_core)
+target_link_libraries(oas_parser PUBLIC oas_core oas_model)
 target_include_directories(oas_parser PUBLIC ${YYJSON_INCLUDE_DIRS})
 target_link_directories(oas_parser PUBLIC ${YYJSON_LIBRARY_DIRS})
 target_link_libraries(oas_parser PUBLIC ${YYJSON_LIBRARIES})
@@ -167,4 +184,8 @@ if(BUILD_TESTING)
     oas_add_test(test_error tests/unit/test_error.c oas_core)
     oas_add_test(test_intern tests/unit/test_intern.c oas_core)
     oas_add_test(test_json tests/unit/test_json.c oas_parser)
+    oas_add_test(test_schema tests/unit/test_schema.c oas_model)
+    oas_add_test(test_schema_parser tests/unit/test_schema_parser.c oas_parser)
+    oas_add_test(test_doc tests/unit/test_doc.c oas_model)
+    oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
 endif()

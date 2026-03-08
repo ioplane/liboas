@@ -15,7 +15,7 @@ description: Use when implementing JSON Schema 2020-12 validation — type syste
 
 ### string
 - `minLength`, `maxLength`: Unicode codepoint count (not byte length)
-- `pattern`: PCRE2 regex (anchored match, not full-string match)
+- `pattern`: ECMA-262 regex, **unanchored** match (via `oas_regex_backend_t` vtable: PCRE2 default or libregexp strict)
 - `format`: date, date-time, time, email, uri, uri-reference, uuid, ipv4, ipv6, hostname
 
 ### number / integer
@@ -70,7 +70,7 @@ description: Use when implementing JSON Schema 2020-12 validation — type syste
 
 - Walk schema tree depth-first, emit flat instruction array
 - **Instructions**: CHECK_TYPE, CHECK_MIN, CHECK_MAX, CHECK_PATTERN, CHECK_FORMAT, CHECK_REQUIRED, CHECK_ENUM, CHECK_CONST, ENTER_OBJECT, ENTER_ARRAY, ENTER_PROPERTY, BRANCH_ALLOF, BRANCH_ONEOF, BRANCH_ANYOF, NEGATE, COND_IF, COND_THEN, COND_ELSE, END
-- Pre-compile regex patterns (PCRE2 JIT) at compile time
+- Pre-compile regex patterns via `oas_regex_backend_t` vtable (PCRE2 JIT default, libregexp optional) at compile time
 - Constant-fold: `{"type": "string", "minLength": 0}` becomes just CHECK_TYPE
 - Inline small `$ref` targets into instruction stream, keep pointer for large ones
 - Track "evaluated" properties/items for unevaluatedProperties/unevaluatedItems support
@@ -91,6 +91,14 @@ description: Use when implementing JSON Schema 2020-12 validation — type syste
 | hostname | RFC 1123 | Labels, max 253 chars total |
 
 Format validation is OPTIONAL per the JSON Schema spec — enforce via configurable policy (`OAS_FORMAT_IGNORE`, `OAS_FORMAT_WARN`, `OAS_FORMAT_ENFORCE`).
+
+## Discriminator (OpenAPI 3.2)
+
+- `discriminator.propertyName`: property whose value selects the schema variant
+- `discriminator.mapping`: map of value → `$ref` (optional, auto-maps to schema name if absent)
+- Used with `oneOf` / `anyOf` for polymorphic dispatch — avoids brute-force schema testing
+- Compiler should emit `OAS_OP_DISCRIMINATOR` that reads property value and jumps directly to matching sub-schema
+- Validation: if discriminator present, use mapping instead of trying all branches
 
 ## Anti-Patterns
 

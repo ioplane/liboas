@@ -138,3 +138,12 @@ description: Use when implementing features that reference IETF standards — JS
 - S3.1: Lists, S3.2: Dictionaries, S3.3: Items
 - S3.3.1: Integers, S3.3.2: Decimals, S3.3.3: Strings, S3.3.4: Tokens, S3.3.5: Byte sequences, S3.3.6: Booleans
 - Modern HTTP header parsing format
+
+## Non-RFC Specifications
+
+| Spec | Version | URL | Notes |
+|------|---------|-----|-------|
+| OpenAPI | 3.2.0 | https://spec.openapis.org/oas/v3.2.0.html | Primary spec |
+| JSON Schema | 2020-12 | https://json-schema.org/draft/2020-12/json-schema-core | Schema validation |
+| YAML | 1.2 | https://yaml.org/spec/1.2.2/ | OpenAPI source format (libfyaml) |
+| ECMA-262 | latest | https://tc39.es/ecma262/ | `pattern` regex semantics (S22 RegExp) |
