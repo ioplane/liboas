@@ -1,20 +1,21 @@
-# liboas test image
-# Based on iohttp-dev, adds project-specific test dependencies and configuration.
+# liboas test image (CI)
+# Based on liboas-dev, pre-builds project for fast test execution.
 #
 # Build:
+#   podman build -t liboas-dev:latest -f deploy/podman/Containerfile deploy/podman/
 #   podman build -t liboas-test:latest -f deploy/podman/Containerfile.test .
 #
 # Run tests:
-#   podman run --rm -v ./:/workspace:Z liboas-test:latest
+#   podman run --rm localhost/liboas-test:latest
 #
 # Run quality pipeline:
 #   podman run --rm --security-opt seccomp=unconfined \
-#     -v ./:/workspace:Z liboas-test:latest ./scripts/quality.sh
+#     -v ./:/workspace:Z localhost/liboas-test:latest ./scripts/quality.sh
 
-FROM localhost/iohttp-dev:latest
+FROM localhost/liboas-dev:latest
 
 LABEL maintainer="liboas"
-LABEL description="liboas test and CI image"
+LABEL description="liboas pre-built test image"
 
 WORKDIR /workspace
 

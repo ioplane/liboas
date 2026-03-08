@@ -178,9 +178,7 @@ void test_schema_nullable_to_type_mask(void)
     s->nullable = true;
 
     /* Apply nullable -> add OAS_TYPE_NULL to mask */
-    if (s->nullable) {
-        s->type_mask |= OAS_TYPE_NULL;
-    }
+    s->type_mask |= OAS_TYPE_NULL;
 
     TEST_ASSERT_TRUE(s->type_mask & OAS_TYPE_STRING);
     TEST_ASSERT_TRUE(s->type_mask & OAS_TYPE_NULL);

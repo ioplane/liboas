@@ -166,6 +166,25 @@ add_custom_target(cppcheck
     VERBATIM
 )
 
+# PVS-Studio (compile_commands.json approach — no cmake module needed)
+find_program(PVS_STUDIO pvs-studio-analyzer)
+find_program(PLOG_CONVERTER plog-converter)
+if(PVS_STUDIO AND PLOG_CONVERTER)
+    add_custom_target(pvs-studio
+        COMMAND ${PVS_STUDIO} analyze
+            -f ${CMAKE_BINARY_DIR}/compile_commands.json
+            -o ${CMAKE_BINARY_DIR}/pvs-studio.log
+            -e /usr/local/src/unity/
+            -j 4
+        COMMAND ${PLOG_CONVERTER}
+            -t errorfile
+            -a "GA:1,2"
+            ${CMAKE_BINARY_DIR}/pvs-studio.log
+        COMMENT "Running PVS-Studio analysis (GA errors + warnings)"
+        VERBATIM
+    )
+endif()
+
 # Doxygen
 find_package(Doxygen QUIET)
 if(DOXYGEN_FOUND)
