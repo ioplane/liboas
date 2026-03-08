@@ -141,6 +141,7 @@ See `.claude/skills/` for detailed guidance on:
 - **`liboas-architecture/`** — Two-layer architecture, directory layout, naming, memory model, iohttp integration (MANDATORY)
 - **`json-schema-patterns/`** — JSON Schema 2020-12 validation, type system, $ref resolution, compilation strategy (MANDATORY for src/compiler/, src/validator/)
 - **`rfc-reference/`** — RFC index with priority map, key sections for JSON, URI, HTTP, auth
+- **`modern-c23/`** — C23 best practices, mandatory features, patterns, anti-patterns, error handling, memory management (MANDATORY for all C code)
 
 ## MCP Documentation (context7)
 
