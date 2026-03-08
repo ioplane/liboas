@@ -1,5 +1,5 @@
 <p align="center">
-  <strong>liboas</strong><br>
+  <strong>liboas</strong> — <em>lib</em>rary for <em>O</em>pen<em>A</em>PI <em>S</em>pecification<br>
   OpenAPI 3.2 library for C23
 </p>
 
