@@ -66,7 +66,6 @@ int rc = oas_validate_request(compiled_doc, &req, &result, arena);
 Request validation performs these steps:
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     REQ["HTTP Request"]
 
@@ -158,7 +157,6 @@ Example: path template `/pets/{petId}` matches `/pets/123` and extracts
 Response lookup follows a priority chain:
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     CODE["Status code<br/>e.g. 201"]
     EXACT{"Exact match?<br/>key '201'"}
