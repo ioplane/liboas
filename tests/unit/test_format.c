@@ -3,8 +3,12 @@
 #include <string.h>
 #include <unity.h>
 
-void setUp(void) {}
-void tearDown(void) {}
+void setUp(void)
+{
+}
+void tearDown(void)
+{
+}
 
 /* ── date ────────────────────────────────────────────────────────────────── */
 
@@ -85,19 +89,15 @@ void test_format_uri_no_scheme(void)
 
 void test_format_uuid_valid(void)
 {
-    TEST_ASSERT_TRUE(
-        oas_format_uuid("550e8400-e29b-41d4-a716-446655440000", 36));
-    TEST_ASSERT_TRUE(
-        oas_format_uuid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", 36));
+    TEST_ASSERT_TRUE(oas_format_uuid("550e8400-e29b-41d4-a716-446655440000", 36));
+    TEST_ASSERT_TRUE(oas_format_uuid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", 36));
 }
 
 void test_format_uuid_invalid(void)
 {
     TEST_ASSERT_FALSE(oas_format_uuid("not-a-uuid", 10));
-    TEST_ASSERT_FALSE(
-        oas_format_uuid("550e8400-e29b-41d4-a716-44665544000", 35));
-    TEST_ASSERT_FALSE(
-        oas_format_uuid("550e8400-e29b-41d4-a716-44665544000g", 36));
+    TEST_ASSERT_FALSE(oas_format_uuid("550e8400-e29b-41d4-a716-44665544000", 35));
+    TEST_ASSERT_FALSE(oas_format_uuid("550e8400-e29b-41d4-a716-44665544000g", 36));
 }
 
 /* ── ipv4 ────────────────────────────────────────────────────────────────── */

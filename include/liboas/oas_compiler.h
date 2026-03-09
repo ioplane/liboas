@@ -30,9 +30,9 @@ typedef struct {
  * @param errors  Error list for compilation diagnostics.
  * @return Compiled schema, or nullptr on failure.
  */
-[[nodiscard]] oas_compiled_schema_t *oas_schema_compile(
-    const oas_schema_t *schema, const oas_compiler_config_t *config,
-    oas_error_list_t *errors);
+[[nodiscard]] oas_compiled_schema_t *oas_schema_compile(const oas_schema_t *schema,
+                                                        const oas_compiler_config_t *config,
+                                                        oas_error_list_t *errors);
 
 /**
  * @brief Free a compiled schema and all resources.

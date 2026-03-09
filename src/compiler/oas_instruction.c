@@ -8,8 +8,9 @@ constexpr size_t OAS_PROGRAM_INITIAL_CAP = 32;
 
 void oas_program_init(oas_program_t *prog)
 {
-    if (!prog)
+    if (!prog) {
         return;
+    }
     prog->code = nullptr;
     prog->count = 0;
     prog->capacity = 0;
@@ -17,8 +18,9 @@ void oas_program_init(oas_program_t *prog)
 
 void oas_program_destroy(oas_program_t *prog)
 {
-    if (!prog)
+    if (!prog) {
         return;
+    }
     free(prog->code);
     prog->code = nullptr;
     prog->count = 0;
@@ -27,16 +29,16 @@ void oas_program_destroy(oas_program_t *prog)
 
 int oas_program_emit(oas_program_t *prog, const oas_instruction_t *instr)
 {
-    if (!prog || !instr)
+    if (!prog || !instr) {
         return -EINVAL;
+    }
 
     if (prog->count >= prog->capacity) {
-        size_t new_cap =
-            prog->capacity == 0 ? OAS_PROGRAM_INITIAL_CAP : prog->capacity * 2;
-        oas_instruction_t *new_code =
-            realloc(prog->code, new_cap * sizeof(*new_code));
-        if (!new_code)
+        size_t new_cap = prog->capacity == 0 ? OAS_PROGRAM_INITIAL_CAP : prog->capacity * 2;
+        oas_instruction_t *new_code = realloc(prog->code, new_cap * sizeof(*new_code));
+        if (!new_code) {
             return -ENOMEM;
+        }
         prog->code = new_code;
         prog->capacity = new_cap;
     }
@@ -47,22 +49,25 @@ int oas_program_emit(oas_program_t *prog, const oas_instruction_t *instr)
 
 size_t oas_program_pos(const oas_program_t *prog)
 {
-    if (!prog)
+    if (!prog) {
         return 0;
+    }
     return prog->count;
 }
 
 void oas_program_patch(oas_program_t *prog, size_t pos, size_t target)
 {
-    if (!prog || pos >= prog->count)
+    if (!prog || pos >= prog->count) {
         return;
+    }
     prog->code[pos].operand.offset = target;
 }
 
 void oas_program_reset(oas_program_t *prog)
 {
-    if (!prog)
+    if (!prog) {
         return;
+    }
     prog->count = 0;
 }
 
@@ -107,7 +112,8 @@ static const char *const opcode_names[] = {
 
 const char *oas_opcode_name(oas_opcode_t op)
 {
-    if (op >= OAS_OP_COUNT_)
+    if (op >= OAS_OP_COUNT_) {
         return "UNKNOWN";
+    }
     return opcode_names[op];
 }

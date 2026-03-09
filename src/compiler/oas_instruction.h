@@ -90,8 +90,7 @@ void oas_program_destroy(oas_program_t *prog);
  * @brief Emit an instruction to the program.
  * @return 0 on success, -ENOMEM on failure.
  */
-[[nodiscard]] int oas_program_emit(oas_program_t *prog,
-                                   const oas_instruction_t *instr);
+[[nodiscard]] int oas_program_emit(oas_program_t *prog, const oas_instruction_t *instr);
 
 /**
  * @brief Get current emission position (for patching jumps).

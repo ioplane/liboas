@@ -30,8 +30,7 @@ struct oas_regex_backend {
      * @param out      Receives compiled pattern on success.
      * @return 0 on success, negative errno on failure.
      */
-    int (*compile)(oas_regex_backend_t *backend, const char *pattern,
-                   oas_compiled_pattern_t **out);
+    int (*compile)(oas_regex_backend_t *backend, const char *pattern, oas_compiled_pattern_t **out);
 
     /**
      * @brief Match a compiled pattern against a string.
