@@ -52,6 +52,7 @@ struct oas_license {
 
 struct oas_info {
     const char *title;
+    const char *summary;
     const char *description;
     const char *version;
     const char *terms_of_service;

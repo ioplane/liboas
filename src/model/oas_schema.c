@@ -19,6 +19,10 @@ oas_schema_t *oas_schema_create(oas_arena_t *arena)
     s->max_length = -1;
     s->min_items = -1;
     s->max_items = -1;
+    s->min_properties = -1;
+    s->max_properties = -1;
+    s->min_contains = -1;
+    s->max_contains = -1;
     return s;
 }
 

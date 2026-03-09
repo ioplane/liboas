@@ -166,6 +166,18 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->unique_items) {
         yyjson_mut_obj_add_bool(doc, obj, "uniqueItems", true);
     }
+    if (schema->contains) {
+        yyjson_mut_val *cv = emit_schema(doc, schema->contains);
+        if (cv) {
+            yyjson_mut_obj_add_val(doc, obj, "contains", cv);
+        }
+    }
+    if (schema->min_contains >= 0) {
+        yyjson_mut_obj_add_int(doc, obj, "minContains", schema->min_contains);
+    }
+    if (schema->max_contains >= 0) {
+        yyjson_mut_obj_add_int(doc, obj, "maxContains", schema->max_contains);
+    }
 
     /* Object constraints */
     if (schema->properties) {
@@ -194,6 +206,50 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
         if (ap_val) {
             yyjson_mut_obj_add_val(doc, obj, "additionalProperties", ap_val);
         }
+    }
+    if (schema->min_properties >= 0) {
+        yyjson_mut_obj_add_int(doc, obj, "minProperties", schema->min_properties);
+    }
+    if (schema->max_properties >= 0) {
+        yyjson_mut_obj_add_int(doc, obj, "maxProperties", schema->max_properties);
+    }
+    if (schema->property_names) {
+        yyjson_mut_val *pn = emit_schema(doc, schema->property_names);
+        if (pn) {
+            yyjson_mut_obj_add_val(doc, obj, "propertyNames", pn);
+        }
+    }
+    if (schema->pattern_properties && schema->pattern_properties_count > 0) {
+        yyjson_mut_val *pp = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < schema->pattern_properties_count; i++) {
+            yyjson_mut_val *pv = emit_schema(doc, schema->pattern_properties[i].schema);
+            if (pv) {
+                yyjson_mut_obj_add_val(doc, pp, schema->pattern_properties[i].pattern, pv);
+            }
+        }
+        yyjson_mut_obj_add_val(doc, obj, "patternProperties", pp);
+    }
+    if (schema->dependent_required && schema->dependent_required_count > 0) {
+        yyjson_mut_val *dr = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < schema->dependent_required_count; i++) {
+            yyjson_mut_val *arr = yyjson_mut_arr(doc);
+            for (size_t j = 0; j < schema->dependent_required[i].required_count; j++) {
+                yyjson_mut_arr_append(
+                    arr, yyjson_mut_str(doc, schema->dependent_required[i].required[j]));
+            }
+            yyjson_mut_obj_add_val(doc, dr, schema->dependent_required[i].property, arr);
+        }
+        yyjson_mut_obj_add_val(doc, obj, "dependentRequired", dr);
+    }
+    if (schema->dependent_schemas && schema->dependent_schemas_count > 0) {
+        yyjson_mut_val *ds = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < schema->dependent_schemas_count; i++) {
+            yyjson_mut_val *sv = emit_schema(doc, schema->dependent_schemas[i].schema);
+            if (sv) {
+                yyjson_mut_obj_add_val(doc, ds, schema->dependent_schemas[i].property, sv);
+            }
+        }
+        yyjson_mut_obj_add_val(doc, obj, "dependentSchemas", ds);
     }
 
     /* Composition */
@@ -287,6 +343,9 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     }
     if (schema->write_only) {
         yyjson_mut_obj_add_bool(doc, obj, "writeOnly", true);
+    }
+    if (schema->deprecated) {
+        yyjson_mut_obj_add_bool(doc, obj, "deprecated", true);
     }
 
     /* Discriminator */
@@ -575,6 +634,9 @@ static yyjson_mut_val *emit_info(yyjson_mut_doc *doc, const oas_info_t *info)
 
     if (info->title) {
         yyjson_mut_obj_add_str(doc, obj, "title", info->title);
+    }
+    if (info->summary) {
+        yyjson_mut_obj_add_str(doc, obj, "summary", info->summary);
     }
     if (info->description) {
         yyjson_mut_obj_add_str(doc, obj, "description", info->description);

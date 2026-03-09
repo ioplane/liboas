@@ -135,6 +135,21 @@ static void parse_array_constraints(oas_schema_t *schema, yyjson_val *obj, oas_a
     if (v && yyjson_is_bool(v)) {
         schema->unique_items = yyjson_get_bool(v);
     }
+
+    v = yyjson_obj_get(obj, "contains");
+    if (v && yyjson_is_obj(v)) {
+        schema->contains = oas_schema_parse(arena, v, errors);
+    }
+
+    v = yyjson_obj_get(obj, "minContains");
+    if (v && yyjson_is_int(v)) {
+        schema->min_contains = yyjson_get_sint(v);
+    }
+
+    v = yyjson_obj_get(obj, "maxContains");
+    if (v && yyjson_is_int(v)) {
+        schema->max_contains = yyjson_get_sint(v);
+    }
 }
 
 static void parse_object_constraints(oas_schema_t *schema, yyjson_val *obj, oas_arena_t *arena,
@@ -190,6 +205,106 @@ static void parse_object_constraints(oas_schema_t *schema, yyjson_val *obj, oas_
             }
         } else if (yyjson_is_obj(v)) {
             schema->additional_properties = oas_schema_parse(arena, v, errors);
+        }
+    }
+
+    v = yyjson_obj_get(obj, "minProperties");
+    if (v && yyjson_is_int(v)) {
+        schema->min_properties = yyjson_get_sint(v);
+    }
+
+    v = yyjson_obj_get(obj, "maxProperties");
+    if (v && yyjson_is_int(v)) {
+        schema->max_properties = yyjson_get_sint(v);
+    }
+
+    v = yyjson_obj_get(obj, "propertyNames");
+    if (v && yyjson_is_obj(v)) {
+        schema->property_names = oas_schema_parse(arena, v, errors);
+    }
+
+    v = yyjson_obj_get(obj, "patternProperties");
+    if (v && yyjson_is_obj(v)) {
+        size_t count = yyjson_obj_size(v);
+        if (count > 0) {
+            schema->pattern_properties = oas_arena_alloc(
+                arena, sizeof(oas_pattern_property_t) * count, _Alignof(oas_pattern_property_t));
+            if (schema->pattern_properties) {
+                schema->pattern_properties_count = count;
+                yyjson_val *pk;
+                yyjson_val *pv;
+                size_t pi;
+                size_t pm;
+                yyjson_obj_foreach(v, pi, pm, pk, pv)
+                {
+                    schema->pattern_properties[pi].pattern = yyjson_get_str(pk);
+                    schema->pattern_properties[pi].schema =
+                        yyjson_is_obj(pv) ? oas_schema_parse(arena, pv, errors) : nullptr;
+                }
+            }
+        }
+    }
+
+    v = yyjson_obj_get(obj, "dependentRequired");
+    if (v && yyjson_is_obj(v)) {
+        size_t count = yyjson_obj_size(v);
+        if (count > 0) {
+            schema->dependent_required = oas_arena_alloc(arena,
+                                                         sizeof(oas_dependent_required_t) * count,
+                                                         _Alignof(oas_dependent_required_t));
+            if (schema->dependent_required) {
+                schema->dependent_required_count = count;
+                yyjson_val *dk;
+                yyjson_val *dv;
+                size_t di;
+                size_t dm;
+                yyjson_obj_foreach(v, di, dm, dk, dv)
+                {
+                    schema->dependent_required[di].property = yyjson_get_str(dk);
+                    schema->dependent_required[di].required = nullptr;
+                    schema->dependent_required[di].required_count = 0;
+                    if (yyjson_is_arr(dv)) {
+                        size_t rc = yyjson_arr_size(dv);
+                        if (rc > 0) {
+                            const char **names = oas_arena_alloc(arena, sizeof(const char *) * rc,
+                                                                 _Alignof(const char *));
+                            if (names) {
+                                schema->dependent_required[di].required = names;
+                                schema->dependent_required[di].required_count = rc;
+                                yyjson_val *ri;
+                                size_t rj;
+                                size_t rm;
+                                yyjson_arr_foreach(dv, rj, rm, ri)
+                                {
+                                    names[rj] = yyjson_is_str(ri) ? yyjson_get_str(ri) : nullptr;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    v = yyjson_obj_get(obj, "dependentSchemas");
+    if (v && yyjson_is_obj(v)) {
+        size_t count = yyjson_obj_size(v);
+        if (count > 0) {
+            schema->dependent_schemas = oas_arena_alloc(
+                arena, sizeof(oas_dependent_schema_t) * count, _Alignof(oas_dependent_schema_t));
+            if (schema->dependent_schemas) {
+                schema->dependent_schemas_count = count;
+                yyjson_val *dk;
+                yyjson_val *dv;
+                size_t di;
+                size_t dm;
+                yyjson_obj_foreach(v, di, dm, dk, dv)
+                {
+                    schema->dependent_schemas[di].property = yyjson_get_str(dk);
+                    schema->dependent_schemas[di].schema =
+                        yyjson_is_obj(dv) ? oas_schema_parse(arena, dv, errors) : nullptr;
+                }
+            }
         }
     }
 }
@@ -339,7 +454,7 @@ oas_schema_t *oas_schema_parse(oas_arena_t *arena, yyjson_val *val, oas_error_li
         schema->type_mask |= OAS_TYPE_NULL;
     }
 
-    /* readOnly / writeOnly */
+    /* readOnly / writeOnly / deprecated */
     v = yyjson_obj_get(val, "readOnly");
     if (v && yyjson_is_bool(v)) {
         schema->read_only = yyjson_get_bool(v);
@@ -347,6 +462,10 @@ oas_schema_t *oas_schema_parse(oas_arena_t *arena, yyjson_val *val, oas_error_li
     v = yyjson_obj_get(val, "writeOnly");
     if (v && yyjson_is_bool(v)) {
         schema->write_only = yyjson_get_bool(v);
+    }
+    v = yyjson_obj_get(val, "deprecated");
+    if (v && yyjson_is_bool(v)) {
+        schema->deprecated = yyjson_get_bool(v);
     }
 
     /* Discriminator */
