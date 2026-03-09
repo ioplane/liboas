@@ -50,7 +50,6 @@ pkg_check_modules(YYJSON REQUIRED yyjson)
 add_library(libregexp STATIC
     vendor/libregexp/libregexp.c
     vendor/libregexp/libunicode.c
-    vendor/libregexp/cutils.c
 )
 target_include_directories(libregexp PUBLIC ${CMAKE_SOURCE_DIR}/vendor/libregexp)
 target_compile_options(libregexp PRIVATE -w)

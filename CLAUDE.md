@@ -91,10 +91,10 @@ deploy/podman/      # Container configurations
 |-----------|---------|--------------------------------|---------|
 | yyjson    | 0.12+   | JSON parsing (~2.4 GB/s)       | MIT     |
 | libfyaml  | 0.9+    | YAML 1.2 parsing (optional)    | MIT     |
-| QuickJS libregexp | latest | ECMA-262 regex (default, vendored) | MIT |
+| quickjs-ng libregexp | latest | ECMA-262 regex (default, vendored) | MIT |
 | Unity     | 2.6.1   | Unit test framework            | MIT     |
 
-**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. QuickJS `libregexp` extracted standalone (6 files, ~50KB compiled) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()`. Vendored in `vendor/libregexp/`, abstracted via `oas_regex_backend_t` vtable.
+**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. quickjs-ng `libregexp` extracted standalone (7 files, ~50KB compiled) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()`. Vendored in `vendor/libregexp/` from quickjs-ng/quickjs fork (security fixes: CVE-2025-62495, OOB reads). Abstracted via `oas_regex_backend_t` vtable.
 
 **YAML:** libfyaml (NOT libyaml). libyaml only supports YAML 1.1; OpenAPI 3.x requires YAML 1.2.
 
