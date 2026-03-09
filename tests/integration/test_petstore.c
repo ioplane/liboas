@@ -231,6 +231,61 @@ void test_petstore_unknown_path(void)
     oas_adapter_destroy(adapter);
 }
 
+/* ── Ref resolution tests ─────────────────────────────────────────────── */
+
+void test_petstore_refs_resolved(void)
+{
+    oas_arena_t *a = oas_arena_create(0);
+    oas_error_list_t *errs = oas_error_list_create(a);
+    oas_doc_t *doc = oas_doc_parse(a, petstore_json, petstore_len, errs);
+    TEST_ASSERT_NOT_NULL(doc);
+    TEST_ASSERT_FALSE(oas_error_list_has_errors(errs));
+
+    /* Pet component schema */
+    TEST_ASSERT_NOT_NULL(doc->components);
+    TEST_ASSERT_EQUAL_size_t(1, doc->components->schemas_count);
+    oas_schema_t *pet = doc->components->schemas[0].schema;
+    TEST_ASSERT_NOT_NULL(pet);
+
+    /* GET /pets response: array with items.$ref -> Pet */
+    oas_path_item_t *pets_path = doc->paths[0].item;
+    TEST_ASSERT_NOT_NULL(pets_path->get);
+    oas_response_t *resp200 = pets_path->get->responses[0].response;
+    TEST_ASSERT_NOT_NULL(resp200);
+    oas_media_type_t *mt = resp200->content[0].value;
+    TEST_ASSERT_NOT_NULL(mt->schema);
+    TEST_ASSERT_NOT_NULL(mt->schema->items);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Pet", mt->schema->items->ref);
+    TEST_ASSERT_NOT_NULL_MESSAGE(mt->schema->items->ref_resolved,
+                                 "GET /pets items.$ref should be resolved");
+    TEST_ASSERT_EQUAL_PTR(pet, mt->schema->items->ref_resolved);
+
+    /* POST /pets requestBody.$ref -> Pet */
+    TEST_ASSERT_NOT_NULL(pets_path->post);
+    TEST_ASSERT_NOT_NULL(pets_path->post->request_body);
+    oas_media_type_t *post_mt = pets_path->post->request_body->content[0].value;
+    TEST_ASSERT_NOT_NULL(post_mt->schema);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Pet", post_mt->schema->ref);
+    TEST_ASSERT_NOT_NULL_MESSAGE(post_mt->schema->ref_resolved,
+                                 "POST /pets body.$ref should be resolved");
+    TEST_ASSERT_EQUAL_PTR(pet, post_mt->schema->ref_resolved);
+
+    /* GET /pets/{petId} response.$ref -> Pet */
+    oas_path_item_t *pet_id_path = doc->paths[1].item;
+    TEST_ASSERT_NOT_NULL(pet_id_path->get);
+    oas_response_t *pet_resp = pet_id_path->get->responses[0].response;
+    TEST_ASSERT_NOT_NULL(pet_resp);
+    oas_media_type_t *pet_mt = pet_resp->content[0].value;
+    TEST_ASSERT_NOT_NULL(pet_mt->schema);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Pet", pet_mt->schema->ref);
+    TEST_ASSERT_NOT_NULL_MESSAGE(pet_mt->schema->ref_resolved,
+                                 "GET /pets/{petId} body.$ref should be resolved");
+    TEST_ASSERT_EQUAL_PTR(pet, pet_mt->schema->ref_resolved);
+
+    oas_doc_free(doc);
+    oas_arena_destroy(a);
+}
+
 /* ── Roundtrip tests ──────────────────────────────────────────────────── */
 
 void test_petstore_roundtrip(void)
@@ -414,6 +469,9 @@ int main(void)
     RUN_TEST(test_petstore_validate_create_pet_fail);
     RUN_TEST(test_petstore_validate_response_pass);
     RUN_TEST(test_petstore_unknown_path);
+
+    /* Ref resolution */
+    RUN_TEST(test_petstore_refs_resolved);
 
     /* Roundtrip */
     RUN_TEST(test_petstore_roundtrip);
