@@ -21,10 +21,9 @@ struct oas_compiled_schema {
 static int track_pattern(oas_compiled_schema_t *cs, oas_compiled_pattern_t *pat)
 {
     if (cs->pattern_count >= cs->pattern_capacity) {
-        size_t new_cap =
-            cs->pattern_capacity == 0 ? OAS_PATTERN_INITIAL_CAP : cs->pattern_capacity * 2;
-        oas_compiled_pattern_t **new_arr =
-            realloc(cs->patterns, new_cap * sizeof(*new_arr));
+        size_t new_cap = cs->pattern_capacity == 0 ? OAS_PATTERN_INITIAL_CAP
+                                                   : cs->pattern_capacity * 2;
+        oas_compiled_pattern_t **new_arr = realloc(cs->patterns, new_cap * sizeof(*new_arr));
         if (!new_arr) {
             return -ENOMEM;
         }
@@ -91,11 +90,11 @@ static int emit_prefix_item(oas_program_t *prog, uint16_t index)
 }
 
 static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
-                           const oas_compiler_config_t *config, oas_error_list_t *errors);
+                          const oas_compiler_config_t *config, oas_error_list_t *errors);
 
-static int compile_composition(oas_compiled_schema_t *cs, oas_opcode_t op,
-                                oas_schema_t **schemas, size_t count,
-                                const oas_compiler_config_t *config, oas_error_list_t *errors)
+static int compile_composition(oas_compiled_schema_t *cs, oas_opcode_t op, oas_schema_t **schemas,
+                               size_t count, const oas_compiler_config_t *config,
+                               oas_error_list_t *errors)
 {
     int rc = emit_branch(&cs->program, op, (uint16_t)count);
     if (rc < 0) {
@@ -116,9 +115,8 @@ static int compile_composition(oas_compiled_schema_t *cs, oas_opcode_t op,
 }
 
 static int compile_conditional_part(oas_compiled_schema_t *cs, oas_opcode_t op,
-                                     const oas_schema_t *schema,
-                                     const oas_compiler_config_t *config,
-                                     oas_error_list_t *errors)
+                                    const oas_schema_t *schema, const oas_compiler_config_t *config,
+                                    oas_error_list_t *errors)
 {
     if (!schema) {
         return 0;
@@ -136,7 +134,7 @@ static int compile_conditional_part(oas_compiled_schema_t *cs, oas_opcode_t op,
 }
 
 static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
-                           const oas_compiler_config_t *config, oas_error_list_t *errors)
+                          const oas_compiler_config_t *config, oas_error_list_t *errors)
 {
     if (!schema) {
         return 0;
@@ -326,22 +324,22 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
 
     /* Composition */
     if (schema->all_of && schema->all_of_count > 0) {
-        rc = compile_composition(cs, OAS_OP_BRANCH_ALLOF, schema->all_of,
-                                  schema->all_of_count, config, errors);
+        rc = compile_composition(cs, OAS_OP_BRANCH_ALLOF, schema->all_of, schema->all_of_count,
+                                 config, errors);
         if (rc < 0) {
             return rc;
         }
     }
     if (schema->any_of && schema->any_of_count > 0) {
-        rc = compile_composition(cs, OAS_OP_BRANCH_ANYOF, schema->any_of,
-                                  schema->any_of_count, config, errors);
+        rc = compile_composition(cs, OAS_OP_BRANCH_ANYOF, schema->any_of, schema->any_of_count,
+                                 config, errors);
         if (rc < 0) {
             return rc;
         }
     }
     if (schema->one_of && schema->one_of_count > 0) {
-        rc = compile_composition(cs, OAS_OP_BRANCH_ONEOF, schema->one_of,
-                                  schema->one_of_count, config, errors);
+        rc = compile_composition(cs, OAS_OP_BRANCH_ONEOF, schema->one_of, schema->one_of_count,
+                                 config, errors);
         if (rc < 0) {
             return rc;
         }
@@ -369,13 +367,11 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
         if (rc < 0) {
             return rc;
         }
-        rc = compile_conditional_part(cs, OAS_OP_COND_THEN, schema->then_schema,
-                                       config, errors);
+        rc = compile_conditional_part(cs, OAS_OP_COND_THEN, schema->then_schema, config, errors);
         if (rc < 0) {
             return rc;
         }
-        rc = compile_conditional_part(cs, OAS_OP_COND_ELSE, schema->else_schema,
-                                       config, errors);
+        rc = compile_conditional_part(cs, OAS_OP_COND_ELSE, schema->else_schema, config, errors);
         if (rc < 0) {
             return rc;
         }
@@ -399,8 +395,8 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
 }
 
 oas_compiled_schema_t *oas_schema_compile(const oas_schema_t *schema,
-                                           const oas_compiler_config_t *config,
-                                           oas_error_list_t *errors)
+                                          const oas_compiler_config_t *config,
+                                          oas_error_list_t *errors)
 {
     if (!schema) {
         return nullptr;

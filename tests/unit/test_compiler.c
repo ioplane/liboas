@@ -87,8 +87,7 @@ void test_compiler_type_array_multiple(void)
 
     TEST_ASSERT_EQUAL_UINT64(2, get_count(cs));
     TEST_ASSERT_EQUAL_UINT8(OAS_OP_CHECK_TYPE, get_code(cs)[0].op);
-    TEST_ASSERT_EQUAL_UINT8(OAS_TYPE_STRING | OAS_TYPE_INTEGER,
-                            get_code(cs)[0].type_mask);
+    TEST_ASSERT_EQUAL_UINT8(OAS_TYPE_STRING | OAS_TYPE_INTEGER, get_code(cs)[0].type_mask);
     TEST_ASSERT_EQUAL_UINT8(OAS_OP_END, get_code(cs)[1].op);
 
     oas_compiled_schema_free(cs);
@@ -201,7 +200,7 @@ void test_compiler_array_prefix_items(void)
     p1->type_mask = OAS_TYPE_INTEGER;
 
     oas_schema_t *items[2] = {p0, p1};
-    s->prefix_items = items;
+    s->prefix_items = items; //-V507
     s->prefix_items_count = 2;
 
     oas_compiled_schema_t *cs = oas_schema_compile(s, nullptr, nullptr);
@@ -229,7 +228,7 @@ void test_compiler_object_required(void)
 {
     oas_schema_t *s = oas_schema_create(arena);
     const char *req[] = {"name", "id"};
-    s->required = req;
+    s->required = req; //-V507
     s->required_count = 2;
 
     oas_compiled_schema_t *cs = oas_schema_compile(s, nullptr, nullptr);
@@ -293,7 +292,7 @@ void test_compiler_allof(void)
     s2->type_mask = OAS_TYPE_STRING;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->all_of = branches;
+    s->all_of = branches; //-V507
     s->all_of_count = 2;
 
     oas_compiled_schema_t *cs = oas_schema_compile(s, nullptr, nullptr);
@@ -324,7 +323,7 @@ void test_compiler_oneof(void)
     s2->type_mask = OAS_TYPE_INTEGER;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->one_of = branches;
+    s->one_of = branches; //-V507
     s->one_of_count = 2;
 
     oas_compiled_schema_t *cs = oas_schema_compile(s, nullptr, nullptr);
