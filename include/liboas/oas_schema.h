@@ -39,6 +39,22 @@ struct oas_discriminator_mapping {
     const char *ref; /**< $ref to schema */
 };
 
+typedef struct {
+    const char *pattern;  /**< Regex pattern for property name */
+    oas_schema_t *schema; /**< Schema to validate matching properties */
+} oas_pattern_property_t;
+
+typedef struct {
+    const char *property;  /**< If this property is present... */
+    const char **required; /**< ...these must also be present */
+    size_t required_count;
+} oas_dependent_required_t;
+
+typedef struct {
+    const char *property;
+    oas_schema_t *schema;
+} oas_dependent_schema_t;
+
 struct oas_property {
     const char *name;
     oas_schema_t *schema;
@@ -83,6 +99,20 @@ struct oas_schema {
     size_t required_count;
     oas_schema_t *additional_properties; /**< nullptr = no constraint */
     bool additional_properties_bool;     /**< true if additionalProperties is boolean */
+    int64_t min_properties;              /**< -1 = not set */
+    int64_t max_properties;              /**< -1 = not set */
+    oas_schema_t *property_names;        /**< schema for all property names */
+    oas_pattern_property_t *pattern_properties;
+    size_t pattern_properties_count;
+    oas_dependent_required_t *dependent_required;
+    size_t dependent_required_count;
+    oas_dependent_schema_t *dependent_schemas;
+    size_t dependent_schemas_count;
+
+    /* Array: contains */
+    oas_schema_t *contains;
+    int64_t min_contains; /**< -1 = not set (default 1 when contains present) */
+    int64_t max_contains; /**< -1 = not set */
 
     /* Composition */
     oas_schema_t **all_of;
@@ -115,6 +145,7 @@ struct oas_schema {
     /* Read/Write only */
     bool read_only;
     bool write_only;
+    bool deprecated;
 
     /* Discriminator (OpenAPI 3.2 polymorphism) */
     const char *discriminator_property;                 /**< propertyName */

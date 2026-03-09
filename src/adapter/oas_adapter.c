@@ -1,13 +1,14 @@
 #include <liboas/oas_adapter.h>
 
-#include <liboas/oas_compiler.h>
+#include "compiler/compiled_doc_internal.h"
+
 #include <liboas/oas_emitter.h>
 #include <liboas/oas_parser.h>
-#include <liboas/oas_regex.h>
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 struct oas_adapter {
     oas_arena_t *arena;           /**< Owns parsed doc memory (spec-first) */
@@ -171,4 +172,57 @@ int oas_adapter_validate_response(const oas_adapter_t *adapter, const char *path
         return -EINVAL;
     }
     return oas_validate_response(adapter->compiled, path, method, resp, result, arena);
+}
+
+int oas_adapter_find_operation(const oas_adapter_t *adapter, const char *method, const char *path,
+                               oas_matched_operation_t *out, oas_arena_t *arena)
+{
+    if (!adapter || !method || !path || !out || !arena) {
+        return -EINVAL;
+    }
+
+    memset(out, 0, sizeof(*out));
+
+    /* Access the compiled doc internals via our matching struct layout */
+    const struct oas_compiled_doc *cdoc = (const struct oas_compiled_doc *)adapter->compiled;
+    if (!cdoc || !cdoc->matcher) {
+        return -ENOENT;
+    }
+
+    /* Match path */
+    oas_path_match_result_t match = {0};
+    int rc = oas_path_match(cdoc->matcher, path, &match, arena);
+    if (rc < 0) {
+        return rc;
+    }
+    if (!match.matched) {
+        return -ENOENT;
+    }
+
+    /* Find operation by template path + method */
+    for (size_t i = 0; i < cdoc->operations_count; i++) {
+        if (strcmp(cdoc->operations[i].path, match.template_path) == 0 &&
+            strcasecmp(cdoc->operations[i].method, method) == 0) {
+            out->operation_id = cdoc->operations[i].operation_id;
+            out->path_template = match.template_path;
+            out->method = cdoc->operations[i].method;
+            out->param_count = match.params_count;
+            if (match.params_count > 0) {
+                out->param_names = oas_arena_alloc(
+                    arena, match.params_count * sizeof(*out->param_names), _Alignof(const char *));
+                out->param_values = oas_arena_alloc(
+                    arena, match.params_count * sizeof(*out->param_values), _Alignof(const char *));
+                if (!out->param_names || !out->param_values) {
+                    return -ENOMEM;
+                }
+                for (size_t j = 0; j < match.params_count; j++) {
+                    out->param_names[j] = match.params[j].name;
+                    out->param_values[j] = match.params[j].value;
+                }
+            }
+            return 0;
+        }
+    }
+
+    return -ENOENT;
 }
