@@ -8,27 +8,38 @@ traversal during validation, producing predictable, cache-friendly execution.
 
 ## Compilation Pipeline
 
-```
-oas_schema_t tree
-      |
-      v
-oas_schema_compile()
-      |
-      +-- emit type checks
-      +-- emit constraint instructions (min/max/pattern/format)
-      +-- emit property traversals (ENTER_PROPERTY)
-      +-- emit array item traversals (ENTER_ITEMS, ENTER_PREFIX_ITEM)
-      +-- emit composition branches (BRANCH_ALLOF/ANYOF/ONEOF)
-      +-- emit conditional blocks (COND_IF/THEN/ELSE)
-      +-- compile regex patterns via backend
-      +-- resolve format validators
-      +-- emit OAS_OP_END
-      |
-      v
-oas_compiled_schema_t
-  +-- program (instruction array)
-  +-- regex backend reference
-  +-- compiled patterns array
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    INPUT["oas_schema_t tree"]
+
+    subgraph COMPILE["oas_schema_compile()"]
+        direction TB
+        TYPES["Emit type checks"]
+        CONSTR["Emit constraints<br/>min / max / pattern / format"]
+        PROPS["Emit property traversals<br/>ENTER_PROPERTY"]
+        ARRAYS["Emit array traversals<br/>ENTER_ITEMS / ENTER_PREFIX_ITEM"]
+        COMPOSE["Emit composition branches<br/>BRANCH_ALLOF / ANYOF / ONEOF"]
+        COND["Emit conditional blocks<br/>COND_IF / THEN / ELSE"]
+        REGEX["Compile regex patterns<br/>via backend vtable"]
+        FMT["Resolve format validators"]
+        ENDOP["Emit OAS_OP_END"]
+
+        TYPES --> CONSTR --> PROPS --> ARRAYS
+        ARRAYS --> COMPOSE --> COND --> REGEX
+        REGEX --> FMT --> ENDOP
+    end
+
+    OUTPUT["oas_compiled_schema_t"]
+    PROG["program — instruction array"]
+    RREF["regex backend reference"]
+    PATS["compiled patterns array"]
+
+    INPUT --> COMPILE
+    COMPILE --> OUTPUT
+    OUTPUT --- PROG
+    OUTPUT --- RREF
+    OUTPUT --- PATS
 ```
 
 ## API

@@ -36,6 +36,35 @@ oas_adapter_destroy(adapter);
 
 The adapter internally:
 
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    subgraph specfirst["Spec-First"]
+        JSON["JSON spec string"]
+        PARSE["Parse → oas_doc_t"]
+        JSON --> PARSE
+    end
+
+    subgraph codefirst["Code-First"]
+        BUILD["Builder API"]
+        DOC2["oas_doc_t"]
+        BUILD --> DOC2
+    end
+
+    RESOLVE["Resolve $ref"]
+    COMPILE["Compile all schemas"]
+    CACHE["Cache spec JSON"]
+    ADAPTER["oas_adapter_t ready"]
+
+    PARSE --> RESOLVE
+    DOC2 --> RESOLVE
+    RESOLVE --> COMPILE --> CACHE --> ADAPTER
+
+    ADAPTER --> VREQ["Validate requests"]
+    ADAPTER --> VRESP["Validate responses"]
+    ADAPTER --> SERVE["Serve spec / Scalar UI"]
+```
+
 1. Creates an arena and parses the JSON into `oas_doc_t`.
 2. Resolves all `$ref` references.
 3. Compiles all schemas with the default regex backend.
