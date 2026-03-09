@@ -63,9 +63,9 @@ static yyjson_mut_val *emit_type(yyjson_mut_doc *doc, uint8_t mask)
         return nullptr;
     }
 
-    for (uint8_t bit = 0x01; bit <= 0x40; bit <<= 1) {
+    for (unsigned bit = 0x01; bit <= 0x40; bit <<= 1) {
         if (mask & bit) {
-            const char *name = type_name_single(bit);
+            const char *name = type_name_single((uint8_t)bit);
             if (name) {
                 yyjson_mut_arr_append(arr, yyjson_mut_str(doc, name));
             }

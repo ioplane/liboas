@@ -117,6 +117,8 @@ void oas_adapter_destroy(oas_adapter_t *adapter)
     oas_compiled_doc_free(adapter->compiled);
     oas_emit_free(adapter->spec_json);
     if (adapter->owns_arena) {
+        /* Free yyjson_doc before arena (strings point into yyjson memory) */
+        oas_doc_free((oas_doc_t *)adapter->doc);
         oas_arena_destroy(adapter->arena);
     }
     free(adapter);

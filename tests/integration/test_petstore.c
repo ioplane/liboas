@@ -67,6 +67,7 @@ void test_petstore_parse(void)
     TEST_ASSERT_NOT_NULL(doc->components);
     TEST_ASSERT_EQUAL_size_t(1, doc->components->schemas_count);
     TEST_ASSERT_EQUAL_STRING("Pet", doc->components->schemas[0].name);
+    oas_doc_free(doc);
     oas_arena_destroy(arena);
 }
 
@@ -76,6 +77,7 @@ void test_petstore_parse_file(void)
     oas_doc_t *doc = oas_doc_parse_file(arena, "tests/fixtures/petstore.json", nullptr);
     TEST_ASSERT_NOT_NULL(doc);
     TEST_ASSERT_EQUAL_STRING("Petstore", doc->info->title);
+    oas_doc_free(doc);
     oas_arena_destroy(arena);
 }
 
@@ -93,6 +95,7 @@ void test_petstore_compile(void)
     TEST_ASSERT_NOT_NULL(compiled);
 
     oas_compiled_doc_free(compiled);
+    oas_doc_free(doc);
     oas_arena_destroy(arena);
 }
 
@@ -259,6 +262,7 @@ void test_petstore_roundtrip(void)
 
     yyjson_doc_free(parsed);
     oas_emit_free(json);
+    oas_doc_free(doc);
     oas_arena_destroy(arena);
 }
 
