@@ -194,6 +194,15 @@ struct oas_doc {
     size_t security_count;
     oas_tag_t **tags;
     size_t tags_count;
+    void *_json_doc; /**< @internal yyjson_doc* — freed by oas_doc_free() */
 };
+
+/**
+ * @brief Free the underlying JSON document owned by a parsed oas_doc_t.
+ *
+ * Call this when you no longer need string data from the parsed document.
+ * The oas_doc_t struct itself is arena-allocated and freed with the arena.
+ */
+void oas_doc_free(oas_doc_t *doc);
 
 #endif /* LIBOAS_OAS_DOC_H */

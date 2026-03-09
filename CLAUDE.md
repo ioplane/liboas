@@ -25,8 +25,8 @@ cmake --build --preset clang-debug --target docs         # Doxygen
 
 ## Dev Container
 
-- **Image**: `localhost/liboas-dev:latest` (based on iohttp-dev + PCRE2 + libfyaml)
-- **Containerfile**: `deploy/podman/Containerfile` (build: `podman build -t liboas-dev:latest -f deploy/podman/Containerfile deploy/podman/`)
+- **Image**: `localhost/liboas-dev:latest` (standalone from oraclelinux:10)
+- **Containerfile**: `deploy/podman/Containerfile.dev` (build: `make -C deploy/podman build-dev`)
 - **Compilers**: Clang 22.1.0 (primary), GCC 15.1.1 (gcc-toolset-15, validation)
 - **System GCC**: 14.3.1 (OL10 default)
 - **Linker**: mold (debug), lld (release)
@@ -91,11 +91,10 @@ deploy/podman/      # Container configurations
 |-----------|---------|--------------------------------|---------|
 | yyjson    | 0.12+   | JSON parsing (~2.4 GB/s)       | MIT     |
 | libfyaml  | 0.9+    | YAML 1.2 parsing (optional)    | MIT     |
-| PCRE2     | 10.40+  | Regex `pattern` (default backend) | BSD   |
-| QuickJS libregexp | latest | ECMA-262 regex (optional, strict mode) | MIT |
+| quickjs-ng libregexp | latest | ECMA-262 regex (default, vendored) | MIT |
 | Unity     | 2.6.1   | Unit test framework            | MIT     |
 
-**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. PCRE2 provides ~95% compatibility (default). QuickJS `libregexp` extracted standalone (5-6 files, ~50-80KB) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()` (optional strict mode). Abstracted via `oas_regex_backend_t` vtable. Vendored in `vendor/libregexp/`.
+**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. quickjs-ng `libregexp` extracted standalone (7 files, ~50KB compiled) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()`. Vendored in `vendor/libregexp/` from quickjs-ng/quickjs fork (security fixes: CVE-2025-62495, OOB reads). Abstracted via `oas_regex_backend_t` vtable.
 
 **YAML:** libfyaml (NOT libyaml). libyaml only supports YAML 1.1; OpenAPI 3.x requires YAML 1.2.
 
@@ -109,19 +108,30 @@ deploy/podman/      # Container configurations
 
 ## Post-Sprint Quality Pipeline (MANDATORY)
 
-After completing each sprint, run the **full quality pipeline** inside the container:
+After completing **each task**, run the **full quality pipeline** inside the container. All 6 steps MUST pass before the task is considered done. Commit the task only after the pipeline passes. Fix any failures before moving to the next task.
 
 ```bash
 podman run --rm --security-opt seccomp=unconfined \
+  --env-file .env \
   -v /opt/projects/repositories/liboas:/workspace:Z \
   localhost/liboas-dev:latest bash -c "cd /workspace && ./scripts/quality.sh"
 ```
+
+**Pipeline steps (all must PASS):**
+1. Build (`cmake --preset clang-debug && cmake --build`)
+2. Unit tests (`ctest --preset clang-debug`)
+3. clang-format (`format-check` target)
+4. cppcheck (static analysis)
+5. PVS-Studio (proprietary static analyzer)
+6. CodeChecker (Clang SA + clang-tidy)
+
+**If quality pipeline fails:** fix all findings, re-run until 6/6 PASS, then commit fixes as `chore: quality pipeline fixes — <description>`.
 
 ## Architecture Decisions (DO NOT CHANGE)
 
 - Two-layer architecture: OAS Model (parse) + Compiled Runtime (validate)
 - yyjson for JSON parsing (not cJSON, not jansson)
-- Regex via `oas_regex_backend_t` vtable (PCRE2 default, libregexp optional)
+- Regex via `oas_regex_backend_t` vtable (QuickJS libregexp, vendored)
 - YAML via libfyaml (NOT libyaml), optional CMake option
 - Pure C libraries only (no C++ dependencies)
 - Linux only

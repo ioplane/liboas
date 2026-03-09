@@ -46,8 +46,14 @@ find_package(PkgConfig REQUIRED)
 # yyjson (required)
 pkg_check_modules(YYJSON REQUIRED yyjson)
 
-# PCRE2 (optional, for pattern validation)
-pkg_check_modules(PCRE2 pcre2-8)
+# ── Vendored libregexp (QuickJS) for ECMA-262 regex ───────────────────────
+add_library(libregexp STATIC
+    vendor/libregexp/libregexp.c
+    vendor/libregexp/libunicode.c
+)
+target_include_directories(libregexp PUBLIC ${CMAKE_SOURCE_DIR}/vendor/libregexp)
+target_compile_options(libregexp PRIVATE -w)
+target_compile_definitions(libregexp PRIVATE _GNU_SOURCE)
 
 # ── Unity test framework ────────────────────────────────────────────────────
 set(UNITY_SRC "/usr/local/src/unity")
@@ -95,24 +101,28 @@ endmacro()
 
 # ── Source files ─────────────────────────────────────────────────────────────
 
-# Core library: arena allocator, error handling, string interning
+# Core library: arena allocator, error handling, string interning, regex
 add_library(oas_core STATIC
     src/core/oas_alloc.c
     src/core/oas_error.c
     src/core/oas_intern.c
     src/core/oas_jsonptr.c
+    src/core/oas_path_match.c
+    src/core/oas_regex_libregexp.c
 )
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(oas_core PUBLIC _GNU_SOURCE)
 target_include_directories(oas_core PUBLIC ${YYJSON_INCLUDE_DIRS})
 target_link_directories(oas_core PUBLIC ${YYJSON_LIBRARY_DIRS})
-target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES})
+target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES} libregexp)
 
 # Model library: schema and document types
 add_library(oas_model STATIC
     src/model/oas_schema.c
     src/model/oas_doc.c
+    src/model/oas_schema_builder.c
+    src/model/oas_doc_builder.c
 )
 target_include_directories(oas_model PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_model PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -128,6 +138,59 @@ add_library(oas_parser STATIC
 target_include_directories(oas_parser PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_parser PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_parser PUBLIC oas_core oas_model)
+
+# Compiler library: format validators, instruction set, schema compiler
+add_library(oas_compiler STATIC
+    src/compiler/oas_format.c
+    src/compiler/oas_instruction.c
+    src/compiler/oas_compiler.c
+    src/compiler/oas_doc_compiler.c
+)
+target_include_directories(oas_compiler PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_compiler PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_compiler PUBLIC oas_core oas_model)
+
+# Validator library: validation VM executing compiled bytecode
+add_library(oas_validator STATIC
+    src/validator/oas_validator.c
+    src/validator/oas_request.c
+)
+target_include_directories(oas_validator PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_validator PUBLIC oas_compiler oas_core)
+target_link_libraries(oas_validator PRIVATE m)
+
+# ── Optional YAML support via libfyaml ──────────────────────────────────────
+option(OAS_YAML "Enable YAML 1.2 parsing via libfyaml" OFF)
+if(OAS_YAML)
+    pkg_check_modules(LIBFYAML REQUIRED libfyaml)
+    add_library(oas_yaml STATIC
+        src/parser/oas_yaml.c
+    )
+    target_include_directories(oas_yaml PUBLIC ${CMAKE_SOURCE_DIR}/include)
+    target_include_directories(oas_yaml PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(oas_yaml PUBLIC ${LIBFYAML_INCLUDE_DIRS})
+    target_link_directories(oas_yaml PUBLIC ${LIBFYAML_LIBRARY_DIRS})
+    target_link_libraries(oas_yaml PUBLIC oas_core ${LIBFYAML_LIBRARIES})
+    target_compile_definitions(oas_yaml PRIVATE _GNU_SOURCE)
+endif()
+
+# Emitter library: JSON/YAML emission
+add_library(oas_emitter STATIC
+    src/emitter/oas_emitter.c
+)
+target_include_directories(oas_emitter PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_emitter PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_emitter PUBLIC oas_core oas_model)
+
+# Adapter library: unified validation facade + Scalar UI
+add_library(oas_adapter STATIC
+    src/adapter/oas_adapter.c
+    src/adapter/oas_scalar.c
+)
+target_include_directories(oas_adapter PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_adapter PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_adapter PUBLIC oas_validator oas_parser oas_emitter oas_model oas_core)
 
 # ── Code quality targets ────────────────────────────────────────────────────
 
@@ -161,6 +224,7 @@ add_custom_target(cppcheck
         --inline-suppr
         --project=${CMAKE_BINARY_DIR}/compile_commands.json
         --suppress='*:/usr/local/src/unity/*'
+        --suppress='*:${CMAKE_SOURCE_DIR}/vendor/*'
         -q
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running cppcheck static analysis"
@@ -176,6 +240,7 @@ if(PVS_STUDIO AND PLOG_CONVERTER)
             -f ${CMAKE_BINARY_DIR}/compile_commands.json
             -o ${CMAKE_BINARY_DIR}/pvs-studio.log
             -e /usr/local/src/unity/
+            -e ${CMAKE_SOURCE_DIR}/vendor/
             -j 4
         COMMAND ${PLOG_CONVERTER}
             -t errorfile
@@ -210,4 +275,49 @@ if(BUILD_TESTING)
     oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
     oas_add_test(test_jsonptr tests/unit/test_jsonptr.c oas_core)
     oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
+    oas_add_test(test_regex tests/unit/test_regex.c oas_core)
+    oas_add_test(test_format tests/unit/test_format.c oas_compiler)
+    oas_add_test(test_instruction tests/unit/test_instruction.c oas_compiler)
+    oas_add_test(test_compiler tests/unit/test_compiler.c oas_compiler)
+    oas_add_test(test_path_match tests/unit/test_path_match.c oas_core)
+    oas_add_test(test_validator tests/unit/test_validator.c oas_validator)
+    oas_add_test(test_request tests/unit/test_request.c oas_validator oas_parser)
+    oas_add_test(test_emitter tests/unit/test_emitter.c oas_emitter)
+    oas_add_test(test_builder tests/unit/test_builder.c oas_model oas_emitter)
+    oas_add_test(test_adapter tests/unit/test_adapter.c oas_adapter oas_model)
+    if(OAS_YAML)
+        oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
+    endif()
+
+    # Integration tests
+    oas_add_test(test_petstore tests/integration/test_petstore.c oas_adapter oas_model)
+
+    # LibFuzzer targets (Clang only)
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        macro(oas_add_fuzzer FUZZ_NAME FUZZ_SRC)
+            add_executable(${FUZZ_NAME} ${FUZZ_SRC})
+            target_link_libraries(${FUZZ_NAME} PRIVATE ${ARGN})
+            target_include_directories(${FUZZ_NAME} PRIVATE
+                ${CMAKE_SOURCE_DIR}/include
+                ${CMAKE_SOURCE_DIR}/src
+            )
+            target_compile_definitions(${FUZZ_NAME} PRIVATE _GNU_SOURCE)
+            target_compile_options(${FUZZ_NAME} PRIVATE
+                -fsanitize=fuzzer -Wno-missing-prototypes
+            )
+            target_link_options(${FUZZ_NAME} PRIVATE -fsanitize=fuzzer -no-pie)
+            set_target_properties(${FUZZ_NAME} PROPERTIES
+                POSITION_INDEPENDENT_CODE OFF
+            )
+        endmacro()
+
+        oas_add_fuzzer(fuzz_json_parse tests/fuzz/fuzz_json_parse.c oas_parser)
+        oas_add_fuzzer(fuzz_schema_parse tests/fuzz/fuzz_schema_parse.c oas_parser)
+        oas_add_fuzzer(fuzz_regex tests/fuzz/fuzz_regex.c oas_core)
+        oas_add_fuzzer(fuzz_format tests/fuzz/fuzz_format.c oas_compiler)
+        oas_add_fuzzer(fuzz_emitter tests/fuzz/fuzz_emitter.c oas_emitter oas_parser)
+        oas_add_fuzzer(fuzz_jsonptr tests/fuzz/fuzz_jsonptr.c oas_core)
+        oas_add_fuzzer(fuzz_path_match tests/fuzz/fuzz_path_match.c oas_core)
+        oas_add_fuzzer(fuzz_validator tests/fuzz/fuzz_validator.c oas_validator)
+    endif()
 endif()
