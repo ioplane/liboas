@@ -25,8 +25,8 @@ cmake --build --preset clang-debug --target docs         # Doxygen
 
 ## Dev Container
 
-- **Image**: `localhost/liboas-dev:latest` (based on iohttp-dev + PCRE2 + libfyaml)
-- **Containerfile**: `deploy/podman/Containerfile` (build: `podman build -t liboas-dev:latest -f deploy/podman/Containerfile deploy/podman/`)
+- **Image**: `localhost/liboas-dev:latest` (standalone from oraclelinux:10)
+- **Containerfile**: `deploy/podman/Containerfile.dev` (build: `make -C deploy/podman build-dev`)
 - **Compilers**: Clang 22.1.0 (primary), GCC 15.1.1 (gcc-toolset-15, validation)
 - **System GCC**: 14.3.1 (OL10 default)
 - **Linker**: mold (debug), lld (release)
@@ -108,13 +108,24 @@ deploy/podman/      # Container configurations
 
 ## Post-Sprint Quality Pipeline (MANDATORY)
 
-After completing each sprint, run the **full quality pipeline** inside the container:
+After completing **each task**, run the **full quality pipeline** inside the container. All 6 steps MUST pass before the task is considered done. Commit the task only after the pipeline passes. Fix any failures before moving to the next task.
 
 ```bash
 podman run --rm --security-opt seccomp=unconfined \
+  --env-file .env \
   -v /opt/projects/repositories/liboas:/workspace:Z \
   localhost/liboas-dev:latest bash -c "cd /workspace && ./scripts/quality.sh"
 ```
+
+**Pipeline steps (all must PASS):**
+1. Build (`cmake --preset clang-debug && cmake --build`)
+2. Unit tests (`ctest --preset clang-debug`)
+3. clang-format (`format-check` target)
+4. cppcheck (static analysis)
+5. PVS-Studio (proprietary static analyzer)
+6. CodeChecker (Clang SA + clang-tidy)
+
+**If quality pipeline fails:** fix all findings, re-run until 6/6 PASS, then commit fixes as `chore: quality pipeline fixes — <description>`.
 
 ## Architecture Decisions (DO NOT CHANGE)
 
