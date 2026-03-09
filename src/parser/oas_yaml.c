@@ -117,7 +117,7 @@ static yyjson_mut_val *convert_node(yyjson_mut_doc *mdoc, struct fy_node *node)
 static void set_error(char *err_msg, size_t err_size, const char *msg)
 {
     if (err_msg && err_size > 0) {
-        snprintf(err_msg, err_size, "%s", msg);
+        (void)snprintf(err_msg, err_size, "%s", msg);
     }
 }
 
@@ -187,29 +187,29 @@ yyjson_doc *oas_yaml_file_to_json(const char *filepath, char *err_msg, size_t er
     FILE *f = fopen(filepath, "rb");
     if (!f) {
         if (err_msg && err_size > 0) {
-            snprintf(err_msg, err_size, "cannot open file: %s", filepath);
+            (void)snprintf(err_msg, err_size, "cannot open file: %s", filepath);
         }
         return nullptr;
     }
 
-    fseek(f, 0, SEEK_END);
+    (void)fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     if (fsize < 0) {
-        fclose(f);
+        (void)fclose(f);
         set_error(err_msg, err_size, "ftell error");
         return nullptr;
     }
-    fseek(f, 0, SEEK_SET);
+    (void)fseek(f, 0, SEEK_SET);
 
     char *buf = malloc((size_t)fsize);
     if (!buf) {
-        fclose(f);
+        (void)fclose(f);
         set_error(err_msg, err_size, "memory allocation error");
         return nullptr;
     }
 
     size_t nread = fread(buf, 1, (size_t)fsize, f);
-    fclose(f);
+    (void)fclose(f);
 
     yyjson_doc *doc = oas_yaml_to_json(buf, nread, err_msg, err_size);
     free(buf);

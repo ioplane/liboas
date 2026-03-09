@@ -188,8 +188,8 @@ void test_yaml_file_parse(void)
     /* Write temp file */
     FILE *f = fopen(path, "w");
     TEST_ASSERT_NOT_NULL(f);
-    fputs(yaml, f);
-    fclose(f);
+    (void)fputs(yaml, f);
+    (void)fclose(f);
 
     yyjson_doc *doc = oas_yaml_file_to_json(path, err_buf, ERR_BUF_SIZE);
     TEST_ASSERT_NOT_NULL(doc);
@@ -203,7 +203,7 @@ void test_yaml_file_parse(void)
     TEST_ASSERT_EQUAL_STRING("File Test", yyjson_get_str(title));
 
     yyjson_doc_free(doc);
-    remove(path);
+    (void)remove(path);
 }
 
 void test_yaml_auto_detect_json(void)
