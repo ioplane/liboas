@@ -148,6 +148,15 @@ target_include_directories(oas_compiler PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_compiler PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_compiler PUBLIC oas_core oas_model)
 
+# Validator library: validation VM executing compiled bytecode
+add_library(oas_validator STATIC
+    src/validator/oas_validator.c
+)
+target_include_directories(oas_validator PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_validator PUBLIC oas_compiler oas_core)
+target_link_libraries(oas_validator PRIVATE m)
+
 # ── Code quality targets ────────────────────────────────────────────────────
 
 # clang-format
@@ -236,4 +245,5 @@ if(BUILD_TESTING)
     oas_add_test(test_instruction tests/unit/test_instruction.c oas_compiler)
     oas_add_test(test_compiler tests/unit/test_compiler.c oas_compiler)
     oas_add_test(test_path_match tests/unit/test_path_match.c oas_core)
+    oas_add_test(test_validator tests/unit/test_validator.c oas_validator)
 endif()
