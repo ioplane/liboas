@@ -683,6 +683,87 @@ static void execute(vm_state_t *vm)
             break;
         }
 
+        case OAS_OP_DISCRIMINATOR: {
+            const char *prop_name = instr->operand.str;
+
+            /* Read mapping count from next NOP */
+            int64_t count = 0;
+            if (vm->ip < vm->end) {
+                count = vm->ip->operand.i64;
+                vm->ip++;
+            }
+
+            /* Read mapping keys from subsequent NOPs */
+            const oas_instruction_t *keys_start = vm->ip;
+            vm->ip += count;
+
+            if (!yyjson_is_obj(vm->value)) {
+                /* Skip all sub-schemas */
+                for (int64_t i = 0; i < count; i++) {
+                    vm_state_t sub = *vm;
+                    execute(&sub);
+                    vm->ip = sub.ip;
+                }
+                add_error(vm, "discriminator: value is not an object");
+                break;
+            }
+
+            /* Read the discriminator property value */
+            yyjson_val *disc_val = yyjson_obj_get(vm->value, prop_name);
+            if (!disc_val || !yyjson_is_str(disc_val)) {
+                /* Skip all sub-schemas */
+                for (int64_t i = 0; i < count; i++) {
+                    vm_state_t sub = *vm;
+                    execute(&sub);
+                    vm->ip = sub.ip;
+                }
+                add_error(vm, "discriminator: missing or non-string property '%s'", prop_name);
+                break;
+            }
+
+            const char *disc_str = yyjson_get_str(disc_val);
+            int64_t match_idx = -1;
+            for (int64_t i = 0; i < count; i++) {
+                if (strcmp(keys_start[i].operand.str, disc_str) == 0) {
+                    match_idx = i;
+                    break;
+                }
+            }
+
+            if (match_idx < 0) {
+                /* No match — skip all sub-schemas and report error */
+                for (int64_t i = 0; i < count; i++) {
+                    vm_state_t sub = *vm;
+                    execute(&sub);
+                    vm->ip = sub.ip;
+                }
+                add_error(vm, "discriminator: value '%s' not in mapping", disc_str);
+            } else {
+                /* Skip sub-schemas before the match */
+                for (int64_t i = 0; i < match_idx; i++) {
+                    vm_state_t sub = *vm;
+                    sub.errors = nullptr;
+                    execute(&sub);
+                    vm->ip = sub.ip;
+                }
+                /* Execute the matching sub-schema */
+                vm_state_t sub = *vm;
+                execute(&sub);
+                if (!sub.valid) {
+                    vm->valid = false;
+                }
+                vm->ip = sub.ip;
+                /* Skip remaining sub-schemas */
+                for (int64_t i = match_idx + 1; i < count; i++) {
+                    vm_state_t sub2 = *vm;
+                    sub2.errors = nullptr;
+                    execute(&sub2);
+                    vm->ip = sub2.ip;
+                }
+            }
+            break;
+        }
+
         default:
             break;
         }

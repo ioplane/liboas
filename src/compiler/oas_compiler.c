@@ -452,7 +452,7 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
         }
     }
 
-    /* Composition */
+    /* Composition (with discriminator optimization) */
     if (schema->all_of && schema->all_of_count > 0) {
         rc = compile_composition(cs, OAS_OP_BRANCH_ALLOF, schema->all_of, schema->all_of_count,
                                  config, errors);
@@ -460,18 +460,61 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
             return rc;
         }
     }
-    if (schema->any_of && schema->any_of_count > 0) {
-        rc = compile_composition(cs, OAS_OP_BRANCH_ANYOF, schema->any_of, schema->any_of_count,
-                                 config, errors);
-        if (rc < 0) {
-            return rc;
+
+    /* Discriminator replaces brute-force anyOf/oneOf when mapping is available */
+    bool has_discriminator = schema->discriminator_property &&
+                             schema->discriminator_mapping_count > 0;
+
+    if (has_discriminator) {
+        oas_schema_t **branches = nullptr;
+        size_t branch_count = 0;
+        if (schema->one_of && schema->one_of_count > 0) {
+            branches = schema->one_of;
+            branch_count = schema->one_of_count;
+        } else if (schema->any_of && schema->any_of_count > 0) {
+            branches = schema->any_of;
+            branch_count = schema->any_of_count;
         }
-    }
-    if (schema->one_of && schema->one_of_count > 0) {
-        rc = compile_composition(cs, OAS_OP_BRANCH_ONEOF, schema->one_of, schema->one_of_count,
-                                 config, errors);
-        if (rc < 0) {
-            return rc;
+        if (branches && branch_count > 0 && branch_count == schema->discriminator_mapping_count) {
+            rc = emit_str(prog, OAS_OP_DISCRIMINATOR, schema->discriminator_property);
+            if (rc < 0) {
+                return rc;
+            }
+            rc = emit_i64(prog, OAS_OP_NOP, (int64_t)schema->discriminator_mapping_count);
+            if (rc < 0) {
+                return rc;
+            }
+            for (size_t i = 0; i < schema->discriminator_mapping_count; i++) {
+                rc = emit_str(prog, OAS_OP_NOP, schema->discriminator_mapping[i].key);
+                if (rc < 0) {
+                    return rc;
+                }
+            }
+            for (size_t i = 0; i < branch_count; i++) {
+                rc = compile_schema(cs, branches[i], config, errors);
+                if (rc < 0) {
+                    return rc;
+                }
+                rc = emit_simple(prog, OAS_OP_END);
+                if (rc < 0) {
+                    return rc;
+                }
+            }
+        }
+    } else {
+        if (schema->any_of && schema->any_of_count > 0) {
+            rc = compile_composition(cs, OAS_OP_BRANCH_ANYOF, schema->any_of, schema->any_of_count,
+                                     config, errors);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+        if (schema->one_of && schema->one_of_count > 0) {
+            rc = compile_composition(cs, OAS_OP_BRANCH_ONEOF, schema->one_of, schema->one_of_count,
+                                     config, errors);
+            if (rc < 0) {
+                return rc;
+            }
         }
     }
 

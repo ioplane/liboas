@@ -5,6 +5,7 @@
 #include <liboas/oas_validator.h>
 
 #include "compiler/oas_format.h"
+#include "compiler/oas_instruction.h"
 #include "parser/oas_json.h"
 #include "parser/oas_schema_parser.h"
 
@@ -417,6 +418,159 @@ void test_validate_max_contains(void)
     oas_compiled_schema_free(cs);
 }
 
+/* ── discriminator ─────────────────────────────────────────────────────── */
+
+static oas_schema_t *make_discriminator_schema(void)
+{
+    oas_schema_t *s = oas_schema_create(arena);
+    s->type_mask = OAS_TYPE_OBJECT;
+    s->discriminator_property = "petType";
+
+    /* Branch 0: cat — requires "meow" property */
+    oas_schema_t *cat = oas_schema_create(arena);
+    cat->type_mask = OAS_TYPE_OBJECT;
+    const char **cat_req = oas_arena_alloc(arena, sizeof(const char *), _Alignof(const char *));
+    cat_req[0] = "meow";
+    cat->required = cat_req;
+    cat->required_count = 1;
+
+    /* Branch 1: dog — requires "bark" property */
+    oas_schema_t *dog = oas_schema_create(arena);
+    dog->type_mask = OAS_TYPE_OBJECT;
+    const char **dog_req = oas_arena_alloc(arena, sizeof(const char *), _Alignof(const char *));
+    dog_req[0] = "bark";
+    dog->required = dog_req;
+    dog->required_count = 1;
+
+    /* oneOf branches */
+    oas_schema_t **branches =
+        oas_arena_alloc(arena, 2 * sizeof(*branches), _Alignof(oas_schema_t *));
+    branches[0] = cat;
+    branches[1] = dog;
+    s->one_of = branches;
+    s->one_of_count = 2;
+
+    /* Discriminator mapping: "cat" -> branch 0, "dog" -> branch 1 */
+    oas_discriminator_mapping_t *mapping =
+        oas_arena_alloc(arena, 2 * sizeof(*mapping), _Alignof(oas_discriminator_mapping_t));
+    mapping[0].key = "cat";
+    mapping[0].ref = "#/components/schemas/Cat";
+    mapping[1].key = "dog";
+    mapping[1].ref = "#/components/schemas/Dog";
+    s->discriminator_mapping = mapping;
+    s->discriminator_mapping_count = 2;
+
+    return s;
+}
+
+void test_compile_discriminator_emits_opcode(void)
+{
+    oas_schema_t *s = make_discriminator_schema();
+    oas_compiled_schema_t *cs = compile_schema(s);
+
+    /* Verify the instruction stream contains OAS_OP_DISCRIMINATOR */
+    const oas_program_t *prog = (const oas_program_t *)cs;
+    bool found = false;
+    for (size_t i = 0; i < prog->count; i++) {
+        if (prog->code[i].op == OAS_OP_DISCRIMINATOR) {
+            found = true;
+            TEST_ASSERT_EQUAL_STRING("petType", prog->code[i].operand.str);
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE_MESSAGE(found, "expected OAS_OP_DISCRIMINATOR in instruction stream");
+    oas_compiled_schema_free(cs);
+}
+
+void test_validate_discriminator_match(void)
+{
+    oas_schema_t *s = make_discriminator_schema();
+    oas_compiled_schema_t *cs = compile_schema(s);
+
+    /* Cat with required "meow" property */
+    oas_validation_result_t r = validate_json(cs, "{\"petType\": \"cat\", \"meow\": true}");
+    TEST_ASSERT_TRUE(r.valid);
+
+    /* Dog with required "bark" property */
+    oas_validation_result_t r2 = validate_json(cs, "{\"petType\": \"dog\", \"bark\": true}");
+    TEST_ASSERT_TRUE(r2.valid);
+
+    oas_compiled_schema_free(cs);
+}
+
+void test_validate_discriminator_mismatch(void)
+{
+    oas_schema_t *s = make_discriminator_schema();
+    oas_compiled_schema_t *cs = compile_schema(s);
+
+    /* "fish" is not in the mapping */
+    oas_validation_result_t r = validate_json(cs, "{\"petType\": \"fish\", \"swim\": true}");
+    TEST_ASSERT_FALSE(r.valid);
+    oas_compiled_schema_free(cs);
+}
+
+void test_validate_discriminator_missing_prop(void)
+{
+    oas_schema_t *s = make_discriminator_schema();
+    oas_compiled_schema_t *cs = compile_schema(s);
+
+    /* Missing discriminator property "petType" */
+    oas_validation_result_t r = validate_json(cs, "{\"meow\": true}");
+    TEST_ASSERT_FALSE(r.valid);
+    oas_compiled_schema_free(cs);
+}
+
+/* ── propertyNames with pattern ────────────────────────────────────────── */
+
+void test_validate_property_names_pattern(void)
+{
+    oas_schema_t *s = oas_schema_create(arena);
+    s->type_mask = OAS_TYPE_OBJECT;
+
+    /* propertyNames must match ^[a-z]+$ */
+    oas_schema_t *names_schema = oas_schema_create(arena);
+    names_schema->type_mask = OAS_TYPE_STRING;
+    names_schema->pattern = "^[a-z]+$";
+    s->property_names = names_schema;
+
+    oas_compiled_schema_t *cs = compile_schema(s);
+
+    /* All lowercase — passes */
+    oas_validation_result_t r = validate_json(cs, "{\"foo\": 1, \"bar\": 2}");
+    TEST_ASSERT_TRUE(r.valid);
+
+    /* "Baz" has uppercase — fails */
+    oas_validation_result_t r2 = validate_json(cs, "{\"foo\": 1, \"Baz\": 2}");
+    TEST_ASSERT_FALSE(r2.valid);
+
+    oas_compiled_schema_free(cs);
+}
+
+/* ── contains without explicit minContains ─────────────────────────────── */
+
+void test_validate_contains_without_min(void)
+{
+    oas_schema_t *s = oas_schema_create(arena);
+    s->type_mask = OAS_TYPE_ARRAY;
+
+    oas_schema_t *contains_schema = oas_schema_create(arena);
+    contains_schema->type_mask = OAS_TYPE_STRING;
+    s->contains = contains_schema;
+    /* min_contains left at -1 (not set), default should be 1 */
+
+    oas_compiled_schema_t *cs = compile_schema(s);
+
+    /* [1, "a"] has one string — passes with default minContains=1 */
+    oas_validation_result_t r = validate_json(cs, "[1, \"a\"]");
+    TEST_ASSERT_TRUE(r.valid);
+
+    /* [1, 2] has no strings — fails */
+    oas_validation_result_t r2 = validate_json(cs, "[1, 2]");
+    TEST_ASSERT_FALSE(r2.valid);
+
+    oas_compiled_schema_free(cs);
+}
+
 /* ── Parser: patternProperties ─────────────────────────────────────────── */
 
 void test_parse_pattern_properties(void)
@@ -541,6 +695,15 @@ int main(void)
     RUN_TEST(test_validate_contains_fail);
     RUN_TEST(test_validate_min_contains);
     RUN_TEST(test_validate_max_contains);
+    /* discriminator */
+    RUN_TEST(test_compile_discriminator_emits_opcode);
+    RUN_TEST(test_validate_discriminator_match);
+    RUN_TEST(test_validate_discriminator_mismatch);
+    RUN_TEST(test_validate_discriminator_missing_prop);
+    /* propertyNames with pattern */
+    RUN_TEST(test_validate_property_names_pattern);
+    /* contains without explicit minContains */
+    RUN_TEST(test_validate_contains_without_min);
     /* Parser tests */
     RUN_TEST(test_parse_pattern_properties);
     RUN_TEST(test_parse_dependent_required);
