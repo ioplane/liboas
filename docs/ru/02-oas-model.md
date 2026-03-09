@@ -84,7 +84,6 @@ HTTP-операция с:
 ## Конвейер парсинга
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     JSON["JSON-строка / файл"]
     YAML["YAML-файл"]

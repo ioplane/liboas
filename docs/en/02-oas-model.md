@@ -84,7 +84,6 @@ Includes scheme-specific fields (`name`, `in`, `scheme`, `bearer_format`,
 ## Parsing Pipeline
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     JSON["JSON string / file"]
     YAML["YAML file"]
