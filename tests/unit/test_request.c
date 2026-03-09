@@ -200,8 +200,8 @@ void test_request_body_pass(void)
     oas_schema_t *req_schema = oas_schema_create(arena);
     req_schema->type_mask = OAS_TYPE_OBJECT;
 
-    const char *required[] = {"name"};
-    req_schema->required = required;
+    static const char *required[] = {"name"};
+    req_schema->required = (const char **)required;
     req_schema->required_count = 1;
 
     oas_schema_t *name_schema = oas_schema_create(arena);
