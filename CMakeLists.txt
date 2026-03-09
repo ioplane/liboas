@@ -183,6 +183,15 @@ target_include_directories(oas_emitter PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_emitter PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_emitter PUBLIC oas_core oas_model)
 
+# Adapter library: unified validation facade + Scalar UI
+add_library(oas_adapter STATIC
+    src/adapter/oas_adapter.c
+    src/adapter/oas_scalar.c
+)
+target_include_directories(oas_adapter PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_adapter PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_adapter PUBLIC oas_validator oas_parser oas_emitter oas_model oas_core)
+
 # ── Code quality targets ────────────────────────────────────────────────────
 
 # clang-format
@@ -275,6 +284,7 @@ if(BUILD_TESTING)
     oas_add_test(test_request tests/unit/test_request.c oas_validator oas_parser)
     oas_add_test(test_emitter tests/unit/test_emitter.c oas_emitter)
     oas_add_test(test_builder tests/unit/test_builder.c oas_model oas_emitter)
+    oas_add_test(test_adapter tests/unit/test_adapter.c oas_adapter oas_model)
     if(OAS_YAML)
         oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
     endif()
