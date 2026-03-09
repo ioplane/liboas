@@ -29,25 +29,32 @@ static oas_regex_backend_t *get_regex(const oas_compiled_schema_t *cs)
 
 static uint8_t yyjson_to_type_mask(yyjson_val *val)
 {
-    if (yyjson_is_null(val))
+    if (yyjson_is_null(val)) {
         return OAS_TYPE_NULL;
-    if (yyjson_is_bool(val))
+    }
+    if (yyjson_is_bool(val)) {
         return OAS_TYPE_BOOLEAN;
-    if (yyjson_is_int(val) || yyjson_is_sint(val) || yyjson_is_uint(val))
+    }
+    if (yyjson_is_int(val) || yyjson_is_sint(val) || yyjson_is_uint(val)) {
         return OAS_TYPE_INTEGER | OAS_TYPE_NUMBER;
+    }
     if (yyjson_is_real(val)) {
         double d = yyjson_get_real(val);
         double intpart;
-        if (modf(d, &intpart) == 0.0)
+        if (modf(d, &intpart) == 0.0) {
             return OAS_TYPE_INTEGER | OAS_TYPE_NUMBER;
+        }
         return OAS_TYPE_NUMBER;
     }
-    if (yyjson_is_str(val))
+    if (yyjson_is_str(val)) {
         return OAS_TYPE_STRING;
-    if (yyjson_is_arr(val))
+    }
+    if (yyjson_is_arr(val)) {
         return OAS_TYPE_ARRAY;
-    if (yyjson_is_obj(val))
+    }
+    if (yyjson_is_obj(val)) {
         return OAS_TYPE_OBJECT;
+    }
     return 0;
 }
 
@@ -55,8 +62,9 @@ static size_t utf8_codepoint_count(const char *s, size_t byte_len)
 {
     size_t count = 0;
     for (size_t i = 0; i < byte_len; i++) {
-        if ((s[i] & 0xC0) != 0x80)
+        if ((s[i] & 0xC0) != 0x80) {
             count++;
+        }
     }
     return count;
 }
@@ -68,8 +76,9 @@ static bool has_duplicate_items(yyjson_val *arr)
         yyjson_val *a = yyjson_arr_get(arr, i);
         for (size_t j = i + 1; j < len; j++) {
             yyjson_val *b = yyjson_arr_get(arr, j);
-            if (yyjson_equals(a, b))
+            if (yyjson_equals(a, b)) {
                 return true;
+            }
         }
     }
     return false;
@@ -85,8 +94,7 @@ typedef struct {
     bool valid;
 } vm_state_t;
 
-static void add_error(vm_state_t *vm, const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+static void add_error(vm_state_t *vm, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
 static void add_error(vm_state_t *vm, const char *fmt, ...)
 {
@@ -96,7 +104,8 @@ static void add_error(vm_state_t *vm, const char *fmt, ...)
         va_start(ap, fmt);
         /* Build message on stack, then pass to error list */
         char buf[256];
-        vsnprintf(buf, sizeof(buf), fmt, ap);
+        // codechecker_suppress [security.VAList] va_list is initialized by va_start above
+        (void)vsnprintf(buf, sizeof(buf), fmt, ap);
         va_end(ap);
         oas_error_list_add(vm->errors, OAS_ERR_CONSTRAINT, "", "%s", buf);
     }
@@ -107,9 +116,8 @@ static void execute(vm_state_t *vm);
 static bool is_nesting_op(oas_opcode_t op)
 {
     return op == OAS_OP_ENTER_ITEMS || op == OAS_OP_ENTER_PROPERTY ||
-           op == OAS_OP_ENTER_PREFIX_ITEM || op == OAS_OP_ENTER_ADDITIONAL ||
-           op == OAS_OP_NEGATE || op == OAS_OP_COND_IF || op == OAS_OP_COND_THEN ||
-           op == OAS_OP_COND_ELSE;
+           op == OAS_OP_ENTER_PREFIX_ITEM || op == OAS_OP_ENTER_ADDITIONAL || op == OAS_OP_NEGATE ||
+           op == OAS_OP_COND_IF || op == OAS_OP_COND_THEN || op == OAS_OP_COND_ELSE;
 }
 
 static void skip_to_end(vm_state_t *vm)
@@ -140,132 +148,159 @@ static void execute(vm_state_t *vm)
 
         case OAS_OP_CHECK_TYPE: {
             uint8_t actual = yyjson_to_type_mask(vm->value);
-            if (!(actual & instr->type_mask))
+            if (!(actual & instr->type_mask)) {
                 add_error(vm, "type mismatch");
+            }
             break;
         }
 
         case OAS_OP_CHECK_MIN_LEN: {
-            if (!yyjson_is_str(vm->value))
+            if (!yyjson_is_str(vm->value)) {
                 break;
+            }
             const char *s = yyjson_get_str(vm->value);
             size_t len = utf8_codepoint_count(s, yyjson_get_len(vm->value));
-            if ((int64_t)len < instr->operand.i64)
+            if ((int64_t)len < instr->operand.i64) {
                 add_error(vm, "string too short");
+            }
             break;
         }
 
         case OAS_OP_CHECK_MAX_LEN: {
-            if (!yyjson_is_str(vm->value))
+            if (!yyjson_is_str(vm->value)) {
                 break;
+            }
             const char *s = yyjson_get_str(vm->value);
             size_t len = utf8_codepoint_count(s, yyjson_get_len(vm->value));
-            if ((int64_t)len > instr->operand.i64)
+            if ((int64_t)len > instr->operand.i64) {
                 add_error(vm, "string too long");
+            }
             break;
         }
 
         case OAS_OP_CHECK_PATTERN: {
-            if (!yyjson_is_str(vm->value) || !vm->regex)
+            if (!yyjson_is_str(vm->value) || !vm->regex) {
                 break;
+            }
             const char *s = yyjson_get_str(vm->value);
             size_t slen = yyjson_get_len(vm->value);
             oas_compiled_pattern_t *pat = instr->operand.ptr;
-            if (!vm->regex->match(vm->regex, pat, s, slen))
+            if (!vm->regex->match(vm->regex, pat, s, slen)) {
                 add_error(vm, "pattern mismatch");
+            }
             break;
         }
 
         case OAS_OP_CHECK_FORMAT: {
-            if (!yyjson_is_str(vm->value))
+            if (!yyjson_is_str(vm->value)) {
                 break;
+            }
             const char *s = yyjson_get_str(vm->value);
             size_t slen = yyjson_get_len(vm->value);
             oas_format_fn_t fn = (oas_format_fn_t)(uintptr_t)instr->operand.ptr;
-            if (!fn(s, slen))
+            if (!fn(s, slen)) {
                 add_error(vm, "format validation failed");
+            }
             break;
         }
 
         case OAS_OP_CHECK_MINIMUM: {
-            if (!yyjson_is_num(vm->value))
+            if (!yyjson_is_num(vm->value)) {
                 break;
+            }
             double v = yyjson_get_num(vm->value);
-            if (v < instr->operand.f64)
+            if (v < instr->operand.f64) {
                 add_error(vm, "below minimum");
+            }
             break;
         }
 
         case OAS_OP_CHECK_MAXIMUM: {
-            if (!yyjson_is_num(vm->value))
+            if (!yyjson_is_num(vm->value)) {
                 break;
+            }
             double v = yyjson_get_num(vm->value);
-            if (v > instr->operand.f64)
+            if (v > instr->operand.f64) {
                 add_error(vm, "above maximum");
+            }
             break;
         }
 
         case OAS_OP_CHECK_EX_MINIMUM: {
-            if (!yyjson_is_num(vm->value))
+            if (!yyjson_is_num(vm->value)) {
                 break;
+            }
             double v = yyjson_get_num(vm->value);
-            if (v <= instr->operand.f64)
+            if (v <= instr->operand.f64) {
                 add_error(vm, "not above exclusive minimum");
+            }
             break;
         }
 
         case OAS_OP_CHECK_EX_MAXIMUM: {
-            if (!yyjson_is_num(vm->value))
+            if (!yyjson_is_num(vm->value)) {
                 break;
+            }
             double v = yyjson_get_num(vm->value);
-            if (v >= instr->operand.f64)
+            if (v >= instr->operand.f64) {
                 add_error(vm, "not below exclusive maximum");
+            }
             break;
         }
 
         case OAS_OP_CHECK_MULTIPLE_OF: {
-            if (!yyjson_is_num(vm->value))
+            if (!yyjson_is_num(vm->value)) {
                 break;
+            }
             double v = yyjson_get_num(vm->value);
             double m = instr->operand.f64;
             double rem = fmod(v, m);
-            if (fabs(rem) > 1e-9 && fabs(rem - m) > 1e-9)
+            if (fabs(rem) > 1e-9 && fabs(rem - m) > 1e-9) {
                 add_error(vm, "not multiple of");
+            }
             break;
         }
 
         case OAS_OP_CHECK_REQUIRED: {
-            if (!yyjson_is_obj(vm->value))
+            if (!yyjson_is_obj(vm->value)) {
                 break;
+            }
             const char *name = instr->operand.str;
-            if (!yyjson_obj_get(vm->value, name))
+            if (!yyjson_obj_get(vm->value, name)) {
                 add_error(vm, "missing required property: %s", name);
+            }
             break;
         }
 
         case OAS_OP_CHECK_MIN_ITEMS: {
-            if (!yyjson_is_arr(vm->value))
+            if (!yyjson_is_arr(vm->value)) {
                 break;
+            }
             size_t n = yyjson_arr_size(vm->value);
-            if ((int64_t)n < instr->operand.i64)
+            if ((int64_t)n < instr->operand.i64) {
                 add_error(vm, "too few items");
+            }
             break;
         }
 
         case OAS_OP_CHECK_MAX_ITEMS: {
-            if (!yyjson_is_arr(vm->value))
+            if (!yyjson_is_arr(vm->value)) {
                 break;
+            }
             size_t n = yyjson_arr_size(vm->value);
-            if ((int64_t)n > instr->operand.i64)
+            if ((int64_t)n > instr->operand.i64) {
                 add_error(vm, "too many items");
+            }
             break;
         }
 
         case OAS_OP_CHECK_UNIQUE: {
-            if (!yyjson_is_arr(vm->value))
+            if (!yyjson_is_arr(vm->value)) {
                 break;
-            if (has_duplicate_items(vm->value))
+            }
+            if (has_duplicate_items(vm->value)) {
                 add_error(vm, "array has duplicate items");
+            }
             break;
         }
 
@@ -283,8 +318,9 @@ static void execute(vm_state_t *vm)
                 sub.value = item;
                 sub.ip = sub_start;
                 execute(&sub);
-                if (!sub.valid)
+                if (!sub.valid) {
                     vm->valid = false;
+                }
             }
             skip_to_end(vm);
             break;
@@ -301,8 +337,9 @@ static void execute(vm_state_t *vm)
                 vm_state_t sub = *vm;
                 sub.value = item;
                 execute(&sub);
-                if (!sub.valid)
+                if (!sub.valid) {
                     vm->valid = false;
+                }
             }
             skip_to_end(vm);
             break;
@@ -319,8 +356,9 @@ static void execute(vm_state_t *vm)
                 vm_state_t sub = *vm;
                 sub.value = prop;
                 execute(&sub);
-                if (!sub.valid)
+                if (!sub.valid) {
                     vm->valid = false;
+                }
             }
             skip_to_end(vm);
             break;
@@ -336,8 +374,9 @@ static void execute(vm_state_t *vm)
             for (uint16_t i = 0; i < count; i++) {
                 vm_state_t sub = *vm;
                 execute(&sub);
-                if (!sub.valid)
+                if (!sub.valid) {
                     vm->valid = false;
+                }
                 vm->ip = sub.ip;
             }
             break;
@@ -352,14 +391,17 @@ static void execute(vm_state_t *vm)
                 sub.errors = nullptr;
                 execute(&sub);
                 after = sub.ip;
-                if (sub.valid)
+                if (sub.valid) {
                     any_pass = true;
+                }
                 vm->ip = sub.ip;
             }
-            if (!any_pass)
+            if (!any_pass) {
                 add_error(vm, "no anyOf branch matched");
-            if (after)
+            }
+            if (after) {
                 vm->ip = after;
+            }
             break;
         }
 
@@ -372,14 +414,17 @@ static void execute(vm_state_t *vm)
                 sub.errors = nullptr;
                 execute(&sub);
                 after = sub.ip;
-                if (sub.valid)
+                if (sub.valid) {
                     pass_count++;
+                }
                 vm->ip = sub.ip;
             }
-            if (pass_count != 1)
+            if (pass_count != 1) {
                 add_error(vm, "oneOf: expected exactly 1 match, got %d", pass_count);
-            if (after)
+            }
+            if (after) {
                 vm->ip = after;
+            }
             break;
         }
 
@@ -388,8 +433,9 @@ static void execute(vm_state_t *vm)
             sub.errors = nullptr;
             execute(&sub);
             vm->ip = sub.ip;
-            if (sub.valid)
+            if (sub.valid) {
                 add_error(vm, "not: schema matched when it should not");
+            }
             break;
         }
 
@@ -421,8 +467,9 @@ static void execute(vm_state_t *vm)
 
         case OAS_OP_CHECK_ENUM: {
             yyjson_val *enum_arr = instr->operand.ptr;
-            if (!yyjson_is_arr(enum_arr))
+            if (!yyjson_is_arr(enum_arr)) {
                 break;
+            }
             bool found = false;
             yyjson_val *item;
             yyjson_arr_iter iter;
@@ -433,15 +480,17 @@ static void execute(vm_state_t *vm)
                     break;
                 }
             }
-            if (!found)
+            if (!found) {
                 add_error(vm, "value not in enum");
+            }
             break;
         }
 
         case OAS_OP_CHECK_CONST: {
             yyjson_val *expected = instr->operand.ptr;
-            if (!yyjson_equals(vm->value, expected))
+            if (!yyjson_equals(vm->value, expected)) {
                 add_error(vm, "value does not match const");
+            }
             break;
         }
 
@@ -454,12 +503,14 @@ static void execute(vm_state_t *vm)
 int oas_validate(const oas_compiled_schema_t *compiled, yyjson_val *value,
                  oas_validation_result_t *result, oas_arena_t *arena)
 {
-    if (!compiled || !value || !result)
+    if (!compiled || !value || !result) {
         return -EINVAL;
+    }
 
     const oas_program_t *prog = get_program(compiled);
-    if (!prog->code || prog->count == 0)
+    if (!prog->code || prog->count == 0) {
         return -EINVAL;
+    }
 
     result->valid = true;
     if (!result->errors && arena) {
@@ -485,12 +536,14 @@ int oas_validate(const oas_compiled_schema_t *compiled, yyjson_val *value,
 int oas_validate_json(const oas_compiled_schema_t *compiled, const char *json, size_t len,
                       oas_validation_result_t *result, oas_arena_t *arena)
 {
-    if (!compiled || !json || !result)
+    if (!compiled || !json || !result) {
         return -EINVAL;
+    }
 
     yyjson_doc *doc = yyjson_read(json, len, 0);
-    if (!doc)
+    if (!doc) {
         return -EINVAL;
+    }
 
     yyjson_val *root = yyjson_doc_get_root(doc);
     int rc = oas_validate(compiled, root, result, arena);

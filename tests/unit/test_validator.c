@@ -8,8 +8,8 @@
 
 #include <string.h>
 
-#include <unity.h>
 #include <yyjson.h>
+#include <unity.h>
 
 static oas_arena_t *arena;
 static oas_regex_backend_t *regex;
@@ -274,7 +274,7 @@ void test_validator_required_pass(void)
 {
     oas_schema_t *s = oas_schema_create(arena);
     const char *req[] = {"name"};
-    s->required = req;
+    s->required = req; //-V507
     s->required_count = 1;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -290,7 +290,7 @@ void test_validator_required_fail(void)
 {
     oas_schema_t *s = oas_schema_create(arena);
     const char *req[] = {"name"};
-    s->required = req;
+    s->required = req; //-V507
     s->required_count = 1;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -434,7 +434,7 @@ void test_validator_allof_pass(void)
     s2->min_length = 3;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->all_of = branches;
+    s->all_of = branches; //-V507
     s->all_of_count = 2;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -455,7 +455,7 @@ void test_validator_allof_fail(void)
     s2->min_length = 10;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->all_of = branches;
+    s->all_of = branches; //-V507
     s->all_of_count = 2;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -477,7 +477,7 @@ void test_validator_oneof_pass(void)
     s2->type_mask = OAS_TYPE_INTEGER;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->one_of = branches;
+    s->one_of = branches; //-V507
     s->one_of_count = 2;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -498,7 +498,7 @@ void test_validator_oneof_fail_zero(void)
     s2->type_mask = OAS_TYPE_INTEGER;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->one_of = branches;
+    s->one_of = branches; //-V507
     s->one_of_count = 2;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -521,7 +521,7 @@ void test_validator_oneof_fail_two(void)
     s2->type_mask = OAS_TYPE_INTEGER;
 
     oas_schema_t *branches[2] = {s1, s2};
-    s->one_of = branches;
+    s->one_of = branches; //-V507
     s->one_of_count = 2;
     oas_compiled_schema_t *cs = compile_schema(s);
 
@@ -611,7 +611,7 @@ void test_validator_collect_all_errors(void)
     s->type_mask = OAS_TYPE_STRING;
     s->min_length = 10;
     const char *req[] = {"name"};
-    s->required = req;
+    s->required = req; //-V507
     s->required_count = 1;
     oas_compiled_schema_t *cs = compile_schema(s);
 

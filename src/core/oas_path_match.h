@@ -21,8 +21,8 @@ typedef struct {
 
 typedef struct {
     bool matched;
-    const char *template_path;  /* which template matched */
-    oas_path_param_t *params;   /* extracted parameters */
+    const char *template_path; /* which template matched */
+    oas_path_param_t *params;  /* extracted parameters */
     size_t params_count;
 } oas_path_match_result_t;
 
@@ -36,8 +36,7 @@ typedef struct oas_path_matcher oas_path_matcher_t;
  * @return Matcher instance, or nullptr on failure or invalid input.
  */
 [[nodiscard]] oas_path_matcher_t *oas_path_matcher_create(oas_arena_t *arena,
-                                                           const char **templates,
-                                                           size_t count);
+                                                          const char **templates, size_t count);
 
 /**
  * @brief Match a request path against registered templates.
@@ -47,9 +46,7 @@ typedef struct oas_path_matcher oas_path_matcher_t;
  * @param arena        Arena for result allocations (params array, strings).
  * @return 0 on success, negative errno on error (-EINVAL for bad input).
  */
-[[nodiscard]] int oas_path_match(const oas_path_matcher_t *matcher,
-                                 const char *request_path,
-                                 oas_path_match_result_t *result,
-                                 oas_arena_t *arena);
+[[nodiscard]] int oas_path_match(const oas_path_matcher_t *matcher, const char *request_path,
+                                 oas_path_match_result_t *result, oas_arena_t *arena);
 
 #endif /* LIBOAS_CORE_PATH_MATCH_H */
