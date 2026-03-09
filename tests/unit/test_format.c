@@ -126,6 +126,28 @@ void test_format_ipv6_valid(void)
     TEST_ASSERT_TRUE(oas_format_ipv6("::", 2));
 }
 
+void test_format_ipv6_rejects_bare_ipv4(void)
+{
+    /* Pure IPv4 addresses must NOT be accepted as IPv6 */
+    TEST_ASSERT_FALSE(oas_format_ipv6("1.2.3.4", 7));
+    TEST_ASSERT_FALSE(oas_format_ipv6("192.168.1.1", 11));
+    TEST_ASSERT_FALSE(oas_format_ipv6("255.255.255.255", 15));
+    TEST_ASSERT_FALSE(oas_format_ipv6("0.0.0.0", 7));
+}
+
+void test_format_ipv6_accepts_mapped_ipv4(void)
+{
+    /* Valid IPv4-mapped IPv6 addresses */
+    const char *mapped = "::ffff:192.168.1.1";
+    TEST_ASSERT_TRUE(oas_format_ipv6(mapped, strlen(mapped)));
+    const char *compat = "::192.168.1.1";
+    TEST_ASSERT_TRUE(oas_format_ipv6(compat, strlen(compat)));
+    const char *full = "2001:db8::192.168.1.1";
+    TEST_ASSERT_TRUE(oas_format_ipv6(full, strlen(full)));
+    const char *nat64 = "64:ff9b::192.0.2.1";
+    TEST_ASSERT_TRUE(oas_format_ipv6(nat64, strlen(nat64)));
+}
+
 /* ── hostname ────────────────────────────────────────────────────────────── */
 
 void test_format_hostname_valid(void)
@@ -192,6 +214,8 @@ int main(void)
     RUN_TEST(test_format_ipv4_valid);
     RUN_TEST(test_format_ipv4_invalid);
     RUN_TEST(test_format_ipv6_valid);
+    RUN_TEST(test_format_ipv6_rejects_bare_ipv4);
+    RUN_TEST(test_format_ipv6_accepts_mapped_ipv4);
     RUN_TEST(test_format_hostname_valid);
     RUN_TEST(test_format_byte_valid);
     RUN_TEST(test_format_int32_range);
