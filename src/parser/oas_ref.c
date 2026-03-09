@@ -286,6 +286,62 @@ int oas_ref_resolve_all(oas_ref_ctx_t *ctx, oas_doc_t *doc, oas_error_list_t *er
                 }
             }
         }
+
+        /* Resolve refs in component responses */
+        for (size_t i = 0; i < doc->components->responses_count; i++) {
+            oas_response_t *resp = doc->components->responses[i].response;
+            if (!resp) {
+                continue;
+            }
+            for (size_t j = 0; j < resp->content_count; j++) {
+                oas_media_type_t *mt = resp->content[j].value;
+                if (mt && mt->schema) {
+                    int rc = resolve_schema_refs(ctx, doc, mt->schema, errors);
+                    if (rc < 0) {
+                        return rc;
+                    }
+                }
+            }
+        }
+
+        /* Resolve refs in component parameters */
+        for (size_t i = 0; i < doc->components->parameters_count; i++) {
+            oas_parameter_t *p = doc->components->parameters[i].parameter;
+            if (p && p->schema) {
+                int rc = resolve_schema_refs(ctx, doc, p->schema, errors);
+                if (rc < 0) {
+                    return rc;
+                }
+            }
+        }
+
+        /* Resolve refs in component request bodies */
+        for (size_t i = 0; i < doc->components->request_bodies_count; i++) {
+            oas_request_body_t *rb = doc->components->request_bodies[i].request_body;
+            if (!rb) {
+                continue;
+            }
+            for (size_t j = 0; j < rb->content_count; j++) {
+                oas_media_type_t *mt = rb->content[j].value;
+                if (mt && mt->schema) {
+                    int rc = resolve_schema_refs(ctx, doc, mt->schema, errors);
+                    if (rc < 0) {
+                        return rc;
+                    }
+                }
+            }
+        }
+
+        /* Resolve refs in component headers */
+        for (size_t i = 0; i < doc->components->headers_count; i++) {
+            oas_parameter_t *h = doc->components->headers[i].header;
+            if (h && h->schema) {
+                int rc = resolve_schema_refs(ctx, doc, h->schema, errors);
+                if (rc < 0) {
+                    return rc;
+                }
+            }
+        }
     }
 
     /* Resolve refs in path operation schemas */
@@ -293,6 +349,16 @@ int oas_ref_resolve_all(oas_ref_ctx_t *ctx, oas_doc_t *doc, oas_error_list_t *er
         oas_path_item_t *pi = doc->paths[i].item;
         if (!pi) {
             continue;
+        }
+
+        /* Path-level parameters */
+        for (size_t k = 0; k < pi->parameters_count; k++) {
+            if (pi->parameters[k] && pi->parameters[k]->schema) {
+                int rc = resolve_schema_refs(ctx, doc, pi->parameters[k]->schema, errors);
+                if (rc < 0) {
+                    return rc;
+                }
+            }
         }
 
         oas_operation_t *ops[] = {pi->get,   pi->post, pi->put,    pi->delete_,

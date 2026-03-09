@@ -254,6 +254,110 @@ void test_ref_external_not_supported(void)
     yyjson_doc_free(jdoc);
 }
 
+/* ── Sprint 11.5: $ref resolution for component types ────────────────── */
+
+static const char *DOC_WITH_COMPONENT_TYPES =
+    "{"
+    "  \"openapi\": \"3.2.0\","
+    "  \"info\": {\"title\": \"T\", \"version\": \"1\"},"
+    "  \"components\": {"
+    "    \"schemas\": {"
+    "      \"Error\": {\"type\": \"object\", \"properties\": {"
+    "        \"message\": {\"type\": \"string\"}"
+    "      }},"
+    "      \"PetId\": {\"type\": \"integer\"}"
+    "    },"
+    "    \"responses\": {"
+    "      \"NotFound\": {\"description\": \"Not found\", \"content\": {"
+    "        \"application/json\": {\"schema\": {\"$ref\": \"#/components/schemas/Error\"}}"
+    "      }}"
+    "    },"
+    "    \"parameters\": {"
+    "      \"PetIdParam\": {\"name\": \"petId\", \"in\": \"path\","
+    "        \"schema\": {\"$ref\": \"#/components/schemas/PetId\"}}"
+    "    },"
+    "    \"requestBodies\": {"
+    "      \"PetBody\": {\"required\": true, \"content\": {"
+    "        \"application/json\": {\"schema\": {\"$ref\": \"#/components/schemas/Error\"}}"
+    "      }}"
+    "    },"
+    "    \"headers\": {"
+    "      \"X-Request-Id\": {\"description\": \"Request ID\","
+    "        \"schema\": {\"$ref\": \"#/components/schemas/PetId\"}}"
+    "    }"
+    "  }"
+    "}";
+
+void test_ref_resolve_response(void)
+{
+    oas_doc_t *doc =
+        oas_doc_parse(arena, DOC_WITH_COMPONENT_TYPES, strlen(DOC_WITH_COMPONENT_TYPES), errors);
+    TEST_ASSERT_NOT_NULL(doc);
+    TEST_ASSERT_NOT_NULL(doc->components);
+    TEST_ASSERT_EQUAL_size_t(1, doc->components->responses_count);
+
+    /* The response content schema had a $ref to Error — should be resolved */
+    oas_response_t *resp = doc->components->responses[0].response;
+    TEST_ASSERT_NOT_NULL(resp);
+    TEST_ASSERT_EQUAL_size_t(1, resp->content_count);
+    oas_schema_t *schema = resp->content[0].value->schema;
+    TEST_ASSERT_NOT_NULL(schema);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Error", schema->ref);
+    TEST_ASSERT_NOT_NULL(schema->ref_resolved);
+    TEST_ASSERT_EQUAL_UINT8(OAS_TYPE_OBJECT, schema->ref_resolved->type_mask);
+
+    oas_doc_free(doc);
+}
+
+void test_ref_resolve_parameter(void)
+{
+    oas_doc_t *doc =
+        oas_doc_parse(arena, DOC_WITH_COMPONENT_TYPES, strlen(DOC_WITH_COMPONENT_TYPES), errors);
+    TEST_ASSERT_NOT_NULL(doc);
+
+    oas_parameter_t *p = doc->components->parameters[0].parameter;
+    TEST_ASSERT_NOT_NULL(p);
+    TEST_ASSERT_NOT_NULL(p->schema);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/PetId", p->schema->ref);
+    TEST_ASSERT_NOT_NULL(p->schema->ref_resolved);
+    TEST_ASSERT_EQUAL_UINT8(OAS_TYPE_INTEGER, p->schema->ref_resolved->type_mask);
+
+    oas_doc_free(doc);
+}
+
+void test_ref_resolve_request_body(void)
+{
+    oas_doc_t *doc =
+        oas_doc_parse(arena, DOC_WITH_COMPONENT_TYPES, strlen(DOC_WITH_COMPONENT_TYPES), errors);
+    TEST_ASSERT_NOT_NULL(doc);
+
+    oas_request_body_t *rb = doc->components->request_bodies[0].request_body;
+    TEST_ASSERT_NOT_NULL(rb);
+    TEST_ASSERT_EQUAL_size_t(1, rb->content_count);
+    oas_schema_t *schema = rb->content[0].value->schema;
+    TEST_ASSERT_NOT_NULL(schema);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Error", schema->ref);
+    TEST_ASSERT_NOT_NULL(schema->ref_resolved);
+
+    oas_doc_free(doc);
+}
+
+void test_ref_resolve_header(void)
+{
+    oas_doc_t *doc =
+        oas_doc_parse(arena, DOC_WITH_COMPONENT_TYPES, strlen(DOC_WITH_COMPONENT_TYPES), errors);
+    TEST_ASSERT_NOT_NULL(doc);
+
+    oas_parameter_t *h = doc->components->headers[0].header;
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_NOT_NULL(h->schema);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/PetId", h->schema->ref);
+    TEST_ASSERT_NOT_NULL(h->schema->ref_resolved);
+    TEST_ASSERT_EQUAL_UINT8(OAS_TYPE_INTEGER, h->schema->ref_resolved->type_mask);
+
+    oas_doc_free(doc);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -267,5 +371,10 @@ int main(void)
     RUN_TEST(test_ref_fragment_only);
     RUN_TEST(test_ref_invalid_pointer);
     RUN_TEST(test_ref_external_not_supported);
+    /* Component type $ref resolution */
+    RUN_TEST(test_ref_resolve_response);
+    RUN_TEST(test_ref_resolve_parameter);
+    RUN_TEST(test_ref_resolve_request_body);
+    RUN_TEST(test_ref_resolve_header);
     return UNITY_END();
 }

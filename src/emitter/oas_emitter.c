@@ -89,10 +89,9 @@ yyjson_mut_val *oas_emit_build_schema(yyjson_mut_doc *doc, const oas_schema_t *s
         return nullptr;
     }
 
-    /* $ref takes precedence: emit only the reference */
+    /* $ref: in OAS 3.1+, siblings are valid alongside $ref */
     if (schema->ref) {
         yyjson_mut_obj_add_str(doc, obj, "$ref", schema->ref);
-        return obj;
     }
 
     /* type */
@@ -783,6 +782,67 @@ static yyjson_mut_val *emit_components(yyjson_mut_doc *doc, const oas_components
             yyjson_mut_obj_add_val(doc, schemes, e->name, sv);
         }
         yyjson_mut_obj_add_val(doc, obj, "securitySchemes", schemes);
+    }
+
+    /* responses */
+    if (comp->responses && comp->responses_count > 0) {
+        yyjson_mut_val *responses = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < comp->responses_count; i++) {
+            yyjson_mut_val *rv = yyjson_mut_obj(doc);
+            if (comp->responses[i].response) {
+                if (comp->responses[i].response->description) {
+                    yyjson_mut_obj_add_str(doc, rv, "description",
+                                           comp->responses[i].response->description);
+                }
+                if (comp->responses[i].response->content &&
+                    comp->responses[i].response->content_count > 0) {
+                    yyjson_mut_val *content =
+                        emit_media_type_content(doc, comp->responses[i].response->content,
+                                                comp->responses[i].response->content_count);
+                    if (content) {
+                        yyjson_mut_obj_add_val(doc, rv, "content", content);
+                    }
+                }
+            }
+            yyjson_mut_obj_add_val(doc, responses, comp->responses[i].name, rv);
+        }
+        yyjson_mut_obj_add_val(doc, obj, "responses", responses);
+    }
+
+    /* parameters */
+    if (comp->parameters && comp->parameters_count > 0) {
+        yyjson_mut_val *params = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < comp->parameters_count; i++) {
+            yyjson_mut_val *pv = emit_parameter(doc, comp->parameters[i].parameter);
+            if (pv) {
+                yyjson_mut_obj_add_val(doc, params, comp->parameters[i].name, pv);
+            }
+        }
+        yyjson_mut_obj_add_val(doc, obj, "parameters", params);
+    }
+
+    /* requestBodies */
+    if (comp->request_bodies && comp->request_bodies_count > 0) {
+        yyjson_mut_val *bodies = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < comp->request_bodies_count; i++) {
+            yyjson_mut_val *rv = emit_request_body(doc, comp->request_bodies[i].request_body);
+            if (rv) {
+                yyjson_mut_obj_add_val(doc, bodies, comp->request_bodies[i].name, rv);
+            }
+        }
+        yyjson_mut_obj_add_val(doc, obj, "requestBodies", bodies);
+    }
+
+    /* headers */
+    if (comp->headers && comp->headers_count > 0) {
+        yyjson_mut_val *headers = yyjson_mut_obj(doc);
+        for (size_t i = 0; i < comp->headers_count; i++) {
+            yyjson_mut_val *hv = emit_parameter(doc, comp->headers[i].header);
+            if (hv) {
+                yyjson_mut_obj_add_val(doc, headers, comp->headers[i].name, hv);
+            }
+        }
+        yyjson_mut_obj_add_val(doc, obj, "headers", headers);
     }
 
     return obj;
