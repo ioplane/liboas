@@ -65,6 +65,29 @@ int rc = oas_validate_request(compiled_doc, &req, &result, arena);
 
 Request validation performs these steps:
 
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    REQ["HTTP Request"]
+
+    MATCH{"Path match?"}
+    METHOD{"Method<br/>lookup?"}
+    PARAMS["Validate parameters<br/>path / query / header / cookie"]
+    BODY{"Has request<br/>body?"}
+    VBODY["Validate body<br/>against schema"]
+    OK["Validation passed"]
+    ERR["Validation error"]
+
+    REQ --> MATCH
+    MATCH -->|not found| ERR
+    MATCH -->|matched| METHOD
+    METHOD -->|not found| ERR
+    METHOD -->|found| PARAMS
+    PARAMS --> BODY
+    BODY -->|yes| VBODY --> OK
+    BODY -->|no| OK
+```
+
 1. **Path matching** -- match `req.path` against all path templates in the
    compiled document, extracting path parameters.
 2. **Method lookup** -- find the operation for the matched path and HTTP method.
@@ -134,9 +157,24 @@ Example: path template `/pets/{petId}` matches `/pets/123` and extracts
 
 Response lookup follows a priority chain:
 
-1. **Exact match** -- e.g. status `200` matches response key `"200"`.
-2. **Range match** -- e.g. status `201` matches `"2XX"`.
-3. **Default** -- the `"default"` response matches any unmatched status.
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    CODE["Status code<br/>e.g. 201"]
+    EXACT{"Exact match?<br/>key '201'"}
+    RANGE{"Range match?<br/>key '2XX'"}
+    DEFAULT{"Default<br/>response?"}
+    FOUND["Use matched<br/>response schema"]
+    NONE["Validation error:<br/>no response defined"]
+
+    CODE --> EXACT
+    EXACT -->|yes| FOUND
+    EXACT -->|no| RANGE
+    RANGE -->|yes| FOUND
+    RANGE -->|no| DEFAULT
+    DEFAULT -->|yes| FOUND
+    DEFAULT -->|no| NONE
+```
 
 If no response definition matches, validation reports an error.
 

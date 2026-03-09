@@ -83,6 +83,25 @@ Includes scheme-specific fields (`name`, `in`, `scheme`, `bearer_format`,
 
 ## Parsing Pipeline
 
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    JSON["JSON string / file"]
+    YAML["YAML file"]
+
+    YYJSON["yyjson parse<br/>~2.4 GB/s"]
+    FYAML["libfyaml<br/>YAML 1.2 → yyjson"]
+
+    WALK["Walk yyjson tree"]
+    DOC["oas_doc_t"]
+    REF["$ref resolution<br/>cycle detection"]
+    READY["Document ready<br/>for compilation"]
+
+    JSON --> YYJSON
+    YAML --> FYAML --> YYJSON
+    YYJSON --> WALK --> DOC --> REF --> READY
+```
+
 ### From JSON String
 
 ```c
