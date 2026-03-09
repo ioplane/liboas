@@ -45,7 +45,8 @@ struct oas_compiled_doc {
     oas_compiled_schema_t **all_schemas;
     size_t all_schemas_count;
     size_t all_schemas_capacity;
-    oas_regex_backend_t *regex; /**< Owned regex backend (freed on destroy) */
+    oas_regex_backend_t *regex;
+    bool owns_regex; /**< If true, regex freed on destroy */
     oas_arena_t *arena;
 };
 
@@ -83,6 +84,7 @@ static int compile_media_types(oas_compiled_doc_t *cdoc, const oas_media_type_en
     }
 
     size_t compiled = 0;
+    int ret = 0;
     for (size_t i = 0; i < count; i++) {
         if (!entries[i].value || !entries[i].value->schema) {
             continue;
@@ -90,7 +92,8 @@ static int compile_media_types(oas_compiled_doc_t *cdoc, const oas_media_type_en
 
         oas_compiled_schema_t *cs = oas_schema_compile(entries[i].value->schema, config, errors);
         if (!cs) {
-            continue;
+            ret = -EINVAL;
+            continue; /* accumulate errors from remaining schemas */
         }
 
         int rc = track_schema(cdoc, cs);
@@ -106,7 +109,7 @@ static int compile_media_types(oas_compiled_doc_t *cdoc, const oas_media_type_en
 
     *out = arr;
     *out_count = compiled;
-    return 0;
+    return ret;
 }
 
 static int compile_params(oas_compiled_doc_t *cdoc, oas_parameter_t **parameters, size_t count,
@@ -126,6 +129,7 @@ static int compile_params(oas_compiled_doc_t *cdoc, oas_parameter_t **parameters
     }
 
     size_t compiled = 0;
+    int ret = 0;
     for (size_t i = 0; i < count; i++) {
         if (!parameters[i] || !parameters[i]->schema) {
             continue;
@@ -133,6 +137,7 @@ static int compile_params(oas_compiled_doc_t *cdoc, oas_parameter_t **parameters
 
         oas_compiled_schema_t *cs = oas_schema_compile(parameters[i]->schema, config, errors);
         if (!cs) {
+            ret = -EINVAL;
             continue;
         }
 
@@ -151,7 +156,7 @@ static int compile_params(oas_compiled_doc_t *cdoc, oas_parameter_t **parameters
 
     *out = arr;
     *out_count = compiled;
-    return 0;
+    return ret;
 }
 
 static int compile_responses(oas_compiled_doc_t *cdoc, const oas_response_entry_t *entries,
@@ -171,6 +176,7 @@ static int compile_responses(oas_compiled_doc_t *cdoc, const oas_response_entry_
     }
 
     size_t compiled = 0;
+    int ret = 0;
     for (size_t i = 0; i < count; i++) {
         if (!entries[i].response) {
             continue;
@@ -181,15 +187,18 @@ static int compile_responses(oas_compiled_doc_t *cdoc, const oas_response_entry_
         int rc = compile_media_types(cdoc, entries[i].response->content,
                                      entries[i].response->content_count, config, errors,
                                      &arr[compiled].content, &arr[compiled].content_count);
-        if (rc < 0) {
+        if (rc == -ENOMEM) {
             return rc;
+        }
+        if (rc < 0) {
+            ret = rc;
         }
         compiled++;
     }
 
     *out = arr;
     *out_count = compiled;
-    return 0;
+    return ret;
 }
 
 static int compile_operation(oas_compiled_doc_t *cdoc, const char *path, const char *method,
@@ -199,6 +208,7 @@ static int compile_operation(oas_compiled_doc_t *cdoc, const char *path, const c
     out->path = path;
     out->method = method;
     out->request_body_required = false;
+    int compile_err = 0;
 
     /* Compile request body */
     if (op->request_body) {
@@ -206,8 +216,11 @@ static int compile_operation(oas_compiled_doc_t *cdoc, const char *path, const c
         int rc = compile_media_types(cdoc, op->request_body->content,
                                      op->request_body->content_count, config, errors,
                                      &out->request_body, &out->request_body_count);
-        if (rc < 0) {
+        if (rc == -ENOMEM) {
             return rc;
+        }
+        if (rc < 0) {
+            compile_err = rc;
         }
     } else {
         out->request_body = nullptr;
@@ -217,18 +230,24 @@ static int compile_operation(oas_compiled_doc_t *cdoc, const char *path, const c
     /* Compile responses */
     int rc = compile_responses(cdoc, op->responses, op->responses_count, config, errors,
                                &out->responses, &out->responses_count);
-    if (rc < 0) {
+    if (rc == -ENOMEM) {
         return rc;
+    }
+    if (rc < 0) {
+        compile_err = rc;
     }
 
     /* Compile parameters */
     rc = compile_params(cdoc, op->parameters, op->parameters_count, config, errors, &out->params,
                         &out->params_count);
-    if (rc < 0) {
+    if (rc == -ENOMEM) {
         return rc;
     }
+    if (rc < 0) {
+        compile_err = rc;
+    }
 
-    return 0;
+    return compile_err;
 }
 
 /* Count total operations across all paths */
@@ -290,6 +309,7 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
     cdoc->arena = doc_arena;
     if (config && config->regex) {
         cdoc->regex = config->regex;
+        cdoc->owns_regex = !config->borrow_regex;
     }
 
     /* Build path matcher from templates */
@@ -320,6 +340,7 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
     }
 
     /* Compile each operation */
+    int compile_err = 0;
     for (size_t i = 0; i < doc->paths_count; i++) {
         const oas_path_item_t *item = doc->paths[i].item;
         if (!item) {
@@ -342,13 +363,20 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
             }
             int rc = compile_operation(cdoc, path, methods[m].method, methods[m].op, config, errors,
                                        &cdoc->operations[op_idx]);
-            if (rc < 0) {
+            if (rc == -ENOMEM) {
                 goto fail;
+            }
+            if (rc < 0) {
+                compile_err = rc;
             }
             op_idx++;
         }
     }
     cdoc->operations_count = op_idx;
+
+    if (compile_err < 0) {
+        goto fail;
+    }
 
     return cdoc;
 
@@ -369,8 +397,8 @@ void oas_compiled_doc_free(oas_compiled_doc_t *compiled)
     }
     free(compiled->all_schemas);
 
-    /* Free owned regex backend */
-    if (compiled->regex) {
+    /* Free regex backend only if we own it */
+    if (compiled->regex && compiled->owns_regex) {
         compiled->regex->destroy(compiled->regex);
     }
 

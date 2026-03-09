@@ -145,6 +145,11 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
         return compile_schema(cs, schema->ref_resolved, config, errors);
     }
 
+    /* Unresolved $ref — cannot compile this schema */
+    if (schema->ref) {
+        return -EINVAL;
+    }
+
     int rc;
     oas_program_t *prog = &cs->program;
 
