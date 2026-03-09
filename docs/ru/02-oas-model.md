@@ -83,6 +83,25 @@ HTTP-операция с:
 
 ## Конвейер парсинга
 
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    JSON["JSON-строка / файл"]
+    YAML["YAML-файл"]
+
+    YYJSON["yyjson parse<br/>~2.4 ГБ/с"]
+    FYAML["libfyaml<br/>YAML 1.2 → yyjson"]
+
+    WALK["Обход дерева yyjson"]
+    DOC["oas_doc_t"]
+    REF["Разрешение $ref<br/>обнаружение циклов"]
+    READY["Документ готов<br/>к компиляции"]
+
+    JSON --> YYJSON
+    YAML --> FYAML --> YYJSON
+    YYJSON --> WALK --> DOC --> REF --> READY
+```
+
 ### Из JSON-строки
 
 ```c

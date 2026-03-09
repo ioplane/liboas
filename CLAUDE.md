@@ -138,6 +138,25 @@ podman run --rm --security-opt seccomp=unconfined \
 - GPLv3 license
 - iohttp integration via adapter pattern (not tight coupling)
 
+## Documentation Diagrams (Mermaid)
+
+- **All diagrams MUST use Mermaid** — no ASCII art, no text diagrams, no embedded images
+- **Theme compatibility**: Every diagram must render correctly in both dark and light themes. Do NOT hardcode colors — use Mermaid's built-in theme variables or `%%{init: {'theme': 'neutral'}}%%` as base
+- **Linting**: All Mermaid diagrams must pass `mmdc` (mermaid-cli) validation before commit
+- **Layout rules**:
+  - Prefer vertical (TB/TD) over horizontal (LR) layouts — diagrams must fit in vertical screens
+  - Maximum width: ~800px equivalent (avoid horizontal scrolling)
+  - No visual overlaps or edge crossings — use subgraphs and ranking to enforce clean layout
+  - Symmetrical and aesthetically balanced node placement
+- **Diagram type selection**: Choose the most appropriate diagram type for each concept:
+  - Architecture/components: `graph TD` or `block-beta`
+  - Data flow/pipelines: `graph TD` with styled edges
+  - State machines: `stateDiagram-v2`
+  - Sequences/protocols: `sequenceDiagram`
+  - Class/type hierarchies: `classDiagram`
+  - Timelines/phases: `timeline`
+- **Consistency**: Same visual style across all documentation files (node shapes, edge styles, subgraph colors via theme variables)
+
 ## Git Workflow
 
 - Branch naming: `feature/description`, `fix/issue-description`

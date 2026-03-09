@@ -5,24 +5,29 @@ It targets Linux exclusively (kernel 6.7+, glibc 2.39+) and is licensed under GP
 
 ## Two-Layer Architecture
 
-```
-                        OpenAPI 3.2 JSON/YAML
-                               |
-                     +---------+---------+
-                     |   Layer 1: Parse  |
-                     |   (OAS Model)     |
-                     +---------+---------+
-                               |
-                          oas_doc_t
-                               |
-                     +---------+---------+
-                     |  Layer 2: Compile |
-                     |  & Validate       |
-                     +---------+---------+
-                               |
-               +---------------+---------------+
-               |               |               |
-         Validate Req    Validate Resp    Emit JSON
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    INPUT["OpenAPI 3.2 JSON / YAML"]
+
+    subgraph L1["Layer 1: Parse — OAS Model"]
+        PARSER["Parser<br/>yyjson + libfyaml"]
+        REF["$ref Resolver"]
+        PARSER --> REF
+    end
+
+    subgraph L2["Layer 2: Compile & Validate"]
+        COMPILER["Schema Compiler"]
+        VM["Validation VM"]
+        MATCHER["Path Matcher"]
+    end
+
+    INPUT --> L1
+    L1 -->|oas_doc_t| L2
+
+    L2 --> VREQ["Validate Request"]
+    L2 --> VRESP["Validate Response"]
+    L2 --> EMIT["Emit JSON"]
 ```
 
 ### Layer 1 -- OAS Model (parse-time)
@@ -97,25 +102,45 @@ tests/fuzz/         LibFuzzer fuzz targets
 
 ## Component Dependency Flow
 
-```
-oas_adapter
-    |
-    +-- oas_parser --> oas_doc (model)
-    |                     |
-    |                     +-- oas_schema
-    |                     +-- $ref resolver
-    |
-    +-- oas_compiler --> oas_compiled_doc
-    |       |
-    |       +-- oas_regex (backend vtable)
-    |
-    +-- oas_validator
-    |       |
-    |       +-- path matcher
-    |       +-- content negotiation (oas_negotiate)
-    |
-    +-- oas_emitter
-    +-- oas_problem (RFC 9457)
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    ADAPTER["oas_adapter"]
+
+    subgraph parse["Parse"]
+        PARSER["oas_parser"]
+        DOC["oas_doc"]
+        SCHEMA["oas_schema"]
+        REFR["$ref resolver"]
+        PARSER --> DOC
+        DOC --> SCHEMA
+        DOC --> REFR
+    end
+
+    subgraph compile["Compile"]
+        COMPILER["oas_compiler"]
+        CDOC["oas_compiled_doc"]
+        REGEX["oas_regex<br/>backend vtable"]
+        COMPILER --> CDOC
+        COMPILER --> REGEX
+    end
+
+    subgraph validate["Validate"]
+        VALIDATOR["oas_validator"]
+        PMATCH["path matcher"]
+        NEGOTIATE["oas_negotiate"]
+        VALIDATOR --> PMATCH
+        VALIDATOR --> NEGOTIATE
+    end
+
+    EMITTER["oas_emitter"]
+    PROBLEM["oas_problem<br/>RFC 9457"]
+
+    ADAPTER --> parse
+    ADAPTER --> compile
+    ADAPTER --> validate
+    ADAPTER --> EMITTER
+    ADAPTER --> PROBLEM
 ```
 
 ## Library Dependencies
