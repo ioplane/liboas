@@ -6,7 +6,6 @@ It targets Linux exclusively (kernel 6.7+, glibc 2.39+) and is licensed under GP
 ## Two-Layer Architecture
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     INPUT["OpenAPI 3.2 JSON / YAML"]
 
@@ -103,7 +102,6 @@ tests/fuzz/         LibFuzzer fuzz targets
 ## Component Dependency Flow
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     ADAPTER["oas_adapter"]
 

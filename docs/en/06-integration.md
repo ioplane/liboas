@@ -37,7 +37,6 @@ oas_adapter_destroy(adapter);
 The adapter internally:
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     subgraph specfirst["Spec-First"]
         JSON["JSON spec string"]

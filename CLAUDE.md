@@ -141,7 +141,7 @@ podman run --rm --security-opt seccomp=unconfined \
 ## Documentation Diagrams (Mermaid)
 
 - **All diagrams MUST use Mermaid** — no ASCII art, no text diagrams, no embedded images
-- **Theme compatibility**: Every diagram must render correctly in both dark and light themes. Do NOT hardcode colors — use Mermaid's built-in theme variables or `%%{init: {'theme': 'neutral'}}%%` as base
+- **Theme compatibility**: Every diagram must render correctly in both dark and light themes. Do NOT set `%%{init: {'theme': '...'}}%%` — GitHub auto-detects the user's theme. Do NOT hardcode colors
 - **Linting**: All Mermaid diagrams must pass `mmdc` (mermaid-cli) validation before commit
 - **Layout rules**:
   - Prefer vertical (TB/TD) over horizontal (LR) layouts — diagrams must fit in vertical screens

@@ -9,7 +9,6 @@ traversal during validation, producing predictable, cache-friendly execution.
 ## Compilation Pipeline
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     INPUT["oas_schema_t tree"]
 

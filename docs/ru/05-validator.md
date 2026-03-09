@@ -66,7 +66,6 @@ int rc = oas_validate_request(compiled_doc, &req, &result, arena);
 Валидация запроса выполняет следующие шаги:
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     REQ["HTTP-запрос"]
 
@@ -158,7 +157,6 @@ int rc = oas_validate_response(compiled_doc, "/pets", "GET", &resp, &result, are
 Поиск ответа следует цепочке приоритетов:
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     CODE["Код статуса<br/>напр. 201"]
     EXACT{"Точное совпадение?<br/>ключ '201'"}

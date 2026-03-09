@@ -10,7 +10,6 @@
 ## Конвейер компиляции
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
 graph TD
     INPUT["Дерево oas_schema_t"]
 
