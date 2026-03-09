@@ -279,11 +279,10 @@ oas_schema_t *oas_schema_parse(oas_arena_t *arena, yyjson_val *val, oas_error_li
         return nullptr;
     }
 
-    /* $ref — if present, store and return (no other keywords processed per spec) */
+    /* $ref — store reference URI; in OAS 3.1+/JSON Schema 2020-12, siblings are valid */
     yyjson_val *ref = yyjson_obj_get(val, "$ref");
     if (ref && yyjson_is_str(ref)) {
         schema->ref = yyjson_get_str(ref);
-        return schema;
     }
 
     /* type */

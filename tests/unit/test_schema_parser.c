@@ -158,6 +158,41 @@ void test_parse_nullable(void)
     TEST_ASSERT_TRUE(s->type_mask & OAS_TYPE_NULL);
 }
 
+/* ── $ref sibling keywords (OAS 3.1+ / JSON Schema 2020-12) ─────────── */
+
+void test_schema_ref_with_description(void)
+{
+    oas_schema_t *s =
+        parse("{\"$ref\": \"#/components/schemas/Pet\", \"description\": \"A pet override\"}");
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Pet", s->ref);
+    TEST_ASSERT_EQUAL_STRING("A pet override", s->description);
+}
+
+void test_schema_ref_with_nullable(void)
+{
+    oas_schema_t *s = parse("{\"$ref\": \"#/components/schemas/Pet\", \"nullable\": true}");
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Pet", s->ref);
+    TEST_ASSERT_TRUE(s->nullable);
+}
+
+void test_schema_ref_only(void)
+{
+    oas_schema_t *s = parse("{\"$ref\": \"#/components/schemas/Pet\"}");
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Pet", s->ref);
+    TEST_ASSERT_EQUAL_UINT8(0, s->type_mask);
+}
+
+void test_schema_ref_with_type(void)
+{
+    oas_schema_t *s = parse("{\"$ref\": \"#/components/schemas/Base\", \"type\": \"object\"}");
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT_EQUAL_STRING("#/components/schemas/Base", s->ref);
+    TEST_ASSERT_EQUAL_UINT8(OAS_TYPE_OBJECT, s->type_mask);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -173,5 +208,10 @@ int main(void)
     RUN_TEST(test_parse_if_then_else);
     RUN_TEST(test_parse_ref);
     RUN_TEST(test_parse_nullable);
+    /* $ref siblings */
+    RUN_TEST(test_schema_ref_with_description);
+    RUN_TEST(test_schema_ref_with_nullable);
+    RUN_TEST(test_schema_ref_only);
+    RUN_TEST(test_schema_ref_with_type);
     return UNITY_END();
 }
