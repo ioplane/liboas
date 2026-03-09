@@ -46,8 +46,15 @@ find_package(PkgConfig REQUIRED)
 # yyjson (required)
 pkg_check_modules(YYJSON REQUIRED yyjson)
 
-# PCRE2 (optional, for pattern validation)
-pkg_check_modules(PCRE2 pcre2-8)
+# ── Vendored libregexp (QuickJS) for ECMA-262 regex ───────────────────────
+add_library(libregexp STATIC
+    vendor/libregexp/libregexp.c
+    vendor/libregexp/libunicode.c
+    vendor/libregexp/cutils.c
+)
+target_include_directories(libregexp PUBLIC ${CMAKE_SOURCE_DIR}/vendor/libregexp)
+target_compile_options(libregexp PRIVATE -w)
+target_compile_definitions(libregexp PRIVATE _GNU_SOURCE)
 
 # ── Unity test framework ────────────────────────────────────────────────────
 set(UNITY_SRC "/usr/local/src/unity")
@@ -95,19 +102,20 @@ endmacro()
 
 # ── Source files ─────────────────────────────────────────────────────────────
 
-# Core library: arena allocator, error handling, string interning
+# Core library: arena allocator, error handling, string interning, regex
 add_library(oas_core STATIC
     src/core/oas_alloc.c
     src/core/oas_error.c
     src/core/oas_intern.c
     src/core/oas_jsonptr.c
+    src/core/oas_regex_libregexp.c
 )
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(oas_core PUBLIC _GNU_SOURCE)
 target_include_directories(oas_core PUBLIC ${YYJSON_INCLUDE_DIRS})
 target_link_directories(oas_core PUBLIC ${YYJSON_LIBRARY_DIRS})
-target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES})
+target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES} libregexp)
 
 # Model library: schema and document types
 add_library(oas_model STATIC
@@ -161,6 +169,7 @@ add_custom_target(cppcheck
         --inline-suppr
         --project=${CMAKE_BINARY_DIR}/compile_commands.json
         --suppress='*:/usr/local/src/unity/*'
+        --suppress='*:${CMAKE_SOURCE_DIR}/vendor/*'
         -q
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Running cppcheck static analysis"
@@ -176,6 +185,7 @@ if(PVS_STUDIO AND PLOG_CONVERTER)
             -f ${CMAKE_BINARY_DIR}/compile_commands.json
             -o ${CMAKE_BINARY_DIR}/pvs-studio.log
             -e /usr/local/src/unity/
+            -e ${CMAKE_SOURCE_DIR}/vendor/
             -j 4
         COMMAND ${PLOG_CONVERTER}
             -t errorfile
@@ -210,4 +220,5 @@ if(BUILD_TESTING)
     oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
     oas_add_test(test_jsonptr tests/unit/test_jsonptr.c oas_core)
     oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
+    oas_add_test(test_regex tests/unit/test_regex.c oas_core)
 endif()
