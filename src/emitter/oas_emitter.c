@@ -5,6 +5,8 @@
 
 #include <liboas/oas_emitter.h>
 
+#include "emitter/oas_emitter_internal.h"
+
 #include <liboas/oas_doc.h>
 #include <liboas/oas_schema.h>
 
@@ -76,7 +78,7 @@ static yyjson_mut_val *emit_type(yyjson_mut_doc *doc, uint8_t mask)
 
 /* ── Schema emission ────────────────────────────────────────────────────── */
 
-static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *schema)
+yyjson_mut_val *oas_emit_build_schema(yyjson_mut_doc *doc, const oas_schema_t *schema)
 {
     if (!schema) {
         return nullptr;
@@ -142,7 +144,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
 
     /* Array constraints */
     if (schema->items) {
-        yyjson_mut_val *items_val = emit_schema(doc, schema->items);
+        yyjson_mut_val *items_val = oas_emit_build_schema(doc, schema->items);
         if (items_val) {
             yyjson_mut_obj_add_val(doc, obj, "items", items_val);
         }
@@ -150,7 +152,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->prefix_items && schema->prefix_items_count > 0) {
         yyjson_mut_val *pi_arr = yyjson_mut_arr(doc);
         for (size_t i = 0; i < schema->prefix_items_count; i++) {
-            yyjson_mut_val *pi_val = emit_schema(doc, schema->prefix_items[i]);
+            yyjson_mut_val *pi_val = oas_emit_build_schema(doc, schema->prefix_items[i]);
             if (pi_val) {
                 yyjson_mut_arr_append(pi_arr, pi_val);
             }
@@ -167,7 +169,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
         yyjson_mut_obj_add_bool(doc, obj, "uniqueItems", true);
     }
     if (schema->contains) {
-        yyjson_mut_val *cv = emit_schema(doc, schema->contains);
+        yyjson_mut_val *cv = oas_emit_build_schema(doc, schema->contains);
         if (cv) {
             yyjson_mut_obj_add_val(doc, obj, "contains", cv);
         }
@@ -183,7 +185,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->properties) {
         yyjson_mut_val *props = yyjson_mut_obj(doc);
         for (const oas_property_t *p = schema->properties; p; p = p->next) {
-            yyjson_mut_val *pval = emit_schema(doc, p->schema);
+            yyjson_mut_val *pval = oas_emit_build_schema(doc, p->schema);
             if (pval) {
                 yyjson_mut_obj_add_val(doc, props, p->name, pval);
             }
@@ -202,7 +204,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
         yyjson_mut_obj_add_bool(doc, obj, "additionalProperties",
                                 schema->additional_properties != nullptr);
     } else if (schema->additional_properties) {
-        yyjson_mut_val *ap_val = emit_schema(doc, schema->additional_properties);
+        yyjson_mut_val *ap_val = oas_emit_build_schema(doc, schema->additional_properties);
         if (ap_val) {
             yyjson_mut_obj_add_val(doc, obj, "additionalProperties", ap_val);
         }
@@ -214,7 +216,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
         yyjson_mut_obj_add_int(doc, obj, "maxProperties", schema->max_properties);
     }
     if (schema->property_names) {
-        yyjson_mut_val *pn = emit_schema(doc, schema->property_names);
+        yyjson_mut_val *pn = oas_emit_build_schema(doc, schema->property_names);
         if (pn) {
             yyjson_mut_obj_add_val(doc, obj, "propertyNames", pn);
         }
@@ -222,7 +224,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->pattern_properties && schema->pattern_properties_count > 0) {
         yyjson_mut_val *pp = yyjson_mut_obj(doc);
         for (size_t i = 0; i < schema->pattern_properties_count; i++) {
-            yyjson_mut_val *pv = emit_schema(doc, schema->pattern_properties[i].schema);
+            yyjson_mut_val *pv = oas_emit_build_schema(doc, schema->pattern_properties[i].schema);
             if (pv) {
                 yyjson_mut_obj_add_val(doc, pp, schema->pattern_properties[i].pattern, pv);
             }
@@ -244,7 +246,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->dependent_schemas && schema->dependent_schemas_count > 0) {
         yyjson_mut_val *ds = yyjson_mut_obj(doc);
         for (size_t i = 0; i < schema->dependent_schemas_count; i++) {
-            yyjson_mut_val *sv = emit_schema(doc, schema->dependent_schemas[i].schema);
+            yyjson_mut_val *sv = oas_emit_build_schema(doc, schema->dependent_schemas[i].schema);
             if (sv) {
                 yyjson_mut_obj_add_val(doc, ds, schema->dependent_schemas[i].property, sv);
             }
@@ -256,7 +258,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->all_of && schema->all_of_count > 0) {
         yyjson_mut_val *arr = yyjson_mut_arr(doc);
         for (size_t i = 0; i < schema->all_of_count; i++) {
-            yyjson_mut_val *v = emit_schema(doc, schema->all_of[i]);
+            yyjson_mut_val *v = oas_emit_build_schema(doc, schema->all_of[i]);
             if (v) {
                 yyjson_mut_arr_append(arr, v);
             }
@@ -266,7 +268,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->any_of && schema->any_of_count > 0) {
         yyjson_mut_val *arr = yyjson_mut_arr(doc);
         for (size_t i = 0; i < schema->any_of_count; i++) {
-            yyjson_mut_val *v = emit_schema(doc, schema->any_of[i]);
+            yyjson_mut_val *v = oas_emit_build_schema(doc, schema->any_of[i]);
             if (v) {
                 yyjson_mut_arr_append(arr, v);
             }
@@ -276,7 +278,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
     if (schema->one_of && schema->one_of_count > 0) {
         yyjson_mut_val *arr = yyjson_mut_arr(doc);
         for (size_t i = 0; i < schema->one_of_count; i++) {
-            yyjson_mut_val *v = emit_schema(doc, schema->one_of[i]);
+            yyjson_mut_val *v = oas_emit_build_schema(doc, schema->one_of[i]);
             if (v) {
                 yyjson_mut_arr_append(arr, v);
             }
@@ -284,7 +286,7 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
         yyjson_mut_obj_add_val(doc, obj, "oneOf", arr);
     }
     if (schema->not_schema) {
-        yyjson_mut_val *nv = emit_schema(doc, schema->not_schema);
+        yyjson_mut_val *nv = oas_emit_build_schema(doc, schema->not_schema);
         if (nv) {
             yyjson_mut_obj_add_val(doc, obj, "not", nv);
         }
@@ -292,19 +294,19 @@ static yyjson_mut_val *emit_schema(yyjson_mut_doc *doc, const oas_schema_t *sche
 
     /* Conditional */
     if (schema->if_schema) {
-        yyjson_mut_val *v = emit_schema(doc, schema->if_schema);
+        yyjson_mut_val *v = oas_emit_build_schema(doc, schema->if_schema);
         if (v) {
             yyjson_mut_obj_add_val(doc, obj, "if", v);
         }
     }
     if (schema->then_schema) {
-        yyjson_mut_val *v = emit_schema(doc, schema->then_schema);
+        yyjson_mut_val *v = oas_emit_build_schema(doc, schema->then_schema);
         if (v) {
             yyjson_mut_obj_add_val(doc, obj, "then", v);
         }
     }
     if (schema->else_schema) {
-        yyjson_mut_val *v = emit_schema(doc, schema->else_schema);
+        yyjson_mut_val *v = oas_emit_build_schema(doc, schema->else_schema);
         if (v) {
             yyjson_mut_obj_add_val(doc, obj, "else", v);
         }
@@ -395,7 +397,7 @@ static yyjson_mut_val *emit_parameter(yyjson_mut_doc *doc, const oas_parameter_t
         yyjson_mut_obj_add_bool(doc, obj, "deprecated", true);
     }
     if (param->schema) {
-        yyjson_mut_val *sv = emit_schema(doc, param->schema);
+        yyjson_mut_val *sv = oas_emit_build_schema(doc, param->schema);
         if (sv) {
             yyjson_mut_obj_add_val(doc, obj, "schema", sv);
         }
@@ -421,7 +423,7 @@ static yyjson_mut_val *emit_media_type_content(yyjson_mut_doc *doc,
     for (size_t i = 0; i < count; i++) {
         yyjson_mut_val *mt_obj = yyjson_mut_obj(doc);
         if (entries[i].value && entries[i].value->schema) {
-            yyjson_mut_val *sv = emit_schema(doc, entries[i].value->schema);
+            yyjson_mut_val *sv = oas_emit_build_schema(doc, entries[i].value->schema);
             if (sv) {
                 yyjson_mut_obj_add_val(doc, mt_obj, "schema", sv);
             }
@@ -744,7 +746,7 @@ static yyjson_mut_val *emit_components(yyjson_mut_doc *doc, const oas_components
     if (comp->schemas && comp->schemas_count > 0) {
         yyjson_mut_val *schemas = yyjson_mut_obj(doc);
         for (size_t i = 0; i < comp->schemas_count; i++) {
-            yyjson_mut_val *sv = emit_schema(doc, comp->schemas[i].schema);
+            yyjson_mut_val *sv = oas_emit_build_schema(doc, comp->schemas[i].schema);
             if (sv) {
                 yyjson_mut_obj_add_val(doc, schemas, comp->schemas[i].name, sv);
             }
@@ -788,7 +790,7 @@ static yyjson_mut_val *emit_components(yyjson_mut_doc *doc, const oas_components
 
 /* ── Document emission ──────────────────────────────────────────────────── */
 
-static yyjson_mut_val *emit_doc(yyjson_mut_doc *doc, const oas_doc_t *oas)
+yyjson_mut_val *oas_emit_build_doc(yyjson_mut_doc *doc, const oas_doc_t *oas)
 {
     yyjson_mut_val *root = yyjson_mut_obj(doc);
     if (!root) {
@@ -890,7 +892,7 @@ char *oas_doc_emit_json(const oas_doc_t *oas, const oas_emit_options_t *options,
         return nullptr;
     }
 
-    yyjson_mut_val *root = emit_doc(doc, oas);
+    yyjson_mut_val *root = oas_emit_build_doc(doc, oas);
     if (!root) {
         yyjson_mut_doc_free(doc);
         return nullptr;
@@ -925,7 +927,7 @@ char *oas_schema_emit_json(const oas_schema_t *schema, const oas_emit_options_t 
         return nullptr;
     }
 
-    yyjson_mut_val *root = emit_schema(doc, schema);
+    yyjson_mut_val *root = oas_emit_build_schema(doc, schema);
     if (!root) {
         yyjson_mut_doc_free(doc);
         return nullptr;

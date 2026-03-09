@@ -179,12 +179,20 @@ if(OAS_YAML)
 endif()
 
 # Emitter library: JSON/YAML emission
-add_library(oas_emitter STATIC
-    src/emitter/oas_emitter.c
-)
+set(OAS_EMITTER_SOURCES src/emitter/oas_emitter.c)
+if(OAS_YAML)
+    list(APPEND OAS_EMITTER_SOURCES src/emitter/oas_yaml_emitter.c)
+endif()
+add_library(oas_emitter STATIC ${OAS_EMITTER_SOURCES})
 target_include_directories(oas_emitter PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_emitter PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_emitter PUBLIC oas_core oas_model)
+if(OAS_YAML)
+    target_include_directories(oas_emitter PUBLIC ${LIBFYAML_INCLUDE_DIRS})
+    target_link_directories(oas_emitter PUBLIC ${LIBFYAML_LIBRARY_DIRS})
+    target_link_libraries(oas_emitter PUBLIC ${LIBFYAML_LIBRARIES})
+    target_compile_definitions(oas_emitter PUBLIC OAS_YAML)
+endif()
 
 # Adapter library: unified validation facade + Scalar UI
 add_library(oas_adapter STATIC
@@ -350,6 +358,7 @@ if(BUILD_TESTING)
     oas_add_test(test_framework_core tests/unit/test_framework_core.c oas_adapter oas_model)
     if(OAS_YAML)
         oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
+        oas_add_test(test_yaml_emitter tests/unit/test_yaml_emitter.c oas_emitter)
     endif()
 
     # Integration tests

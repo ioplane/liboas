@@ -38,9 +38,33 @@ typedef struct {
                                          const oas_emit_options_t *options, size_t *out_len);
 
 /**
- * @brief Free a JSON string returned by emission functions.
- * @param json String to free (nullptr-safe).
+ * @brief Free a string returned by emission functions.
+ * @param str String to free (nullptr-safe).
  */
-void oas_emit_free(char *json);
+void oas_emit_free(char *str);
+
+#ifdef OAS_YAML
+
+/**
+ * @brief Emit an OAS document as a YAML string.
+ * @param doc     Document to emit.
+ * @param options Emission options (nullptr for defaults).
+ * @param out_len If non-null, receives the output length.
+ * @return Heap-allocated YAML string, or nullptr on failure. Free with oas_emit_free().
+ */
+[[nodiscard]] char *oas_doc_emit_yaml(const oas_doc_t *doc, const oas_emit_options_t *options,
+                                      size_t *out_len);
+
+/**
+ * @brief Emit a single schema as a YAML string.
+ * @param schema  Schema to emit.
+ * @param options Emission options (nullptr for defaults).
+ * @param out_len If non-null, receives the output length.
+ * @return Heap-allocated YAML string, or nullptr on failure. Free with oas_emit_free().
+ */
+[[nodiscard]] char *oas_schema_emit_yaml(const oas_schema_t *schema,
+                                         const oas_emit_options_t *options, size_t *out_len);
+
+#endif /* OAS_YAML */
 
 #endif /* LIBOAS_OAS_EMITTER_H */
