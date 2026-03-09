@@ -1,6 +1,8 @@
 #include <liboas/oas_parser.h>
 
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "oas_json.h"
@@ -977,32 +979,7 @@ oas_doc_t *oas_doc_parse_file(oas_arena_t *arena, const char *path, oas_error_li
         return nullptr;
     }
 
-    oas_json_doc_t jdoc = {0};
-    int rc = oas_json_parse_file(path, &jdoc, errors);
-    if (rc != 0) {
-        return nullptr;
-    }
-
-    /* Extract the raw JSON to reparse through oas_doc_parse */
-    /* Actually we already have root — build doc directly */
-    /* Re-serialize isn't needed, let's just inline the same logic */
-
-    if (!yyjson_is_obj(jdoc.root)) {
-        if (errors) {
-            oas_error_list_add(errors, OAS_ERR_PARSE, "/", "root must be an object");
-        }
-        oas_json_free(&jdoc);
-        return nullptr;
-    }
-
-    /* Reuse the string parse path by reading file content ourselves.
-     * But we already have jdoc parsed. Let's build a lightweight wrapper. */
-
-    /* For simplicity, just use yyjson_doc_get_root to get size and re-read. */
-    /* Actually, the simplest is to read the file, then call oas_doc_parse. */
-    oas_json_free(&jdoc);
-
-    /* Read file contents */
+    /* Read file to buffer, then delegate to oas_doc_parse (single pass) */
     FILE *fp = fopen(path, "rb");
     if (!fp) {
         return nullptr;
