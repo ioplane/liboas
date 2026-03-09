@@ -91,11 +91,10 @@ deploy/podman/      # Container configurations
 |-----------|---------|--------------------------------|---------|
 | yyjson    | 0.12+   | JSON parsing (~2.4 GB/s)       | MIT     |
 | libfyaml  | 0.9+    | YAML 1.2 parsing (optional)    | MIT     |
-| PCRE2     | 10.40+  | Regex `pattern` (default backend) | BSD   |
-| QuickJS libregexp | latest | ECMA-262 regex (optional, strict mode) | MIT |
+| QuickJS libregexp | latest | ECMA-262 regex (default, vendored) | MIT |
 | Unity     | 2.6.1   | Unit test framework            | MIT     |
 
-**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. PCRE2 provides ~95% compatibility (default). QuickJS `libregexp` extracted standalone (5-6 files, ~50-80KB) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()` (optional strict mode). Abstracted via `oas_regex_backend_t` vtable. Vendored in `vendor/libregexp/`.
+**Regex strategy:** OpenAPI `pattern` requires ECMA-262 semantics. QuickJS `libregexp` extracted standalone (6 files, ~50KB compiled) provides 100% ECMA-262 via `lre_compile()`/`lre_exec()`. Vendored in `vendor/libregexp/`, abstracted via `oas_regex_backend_t` vtable.
 
 **YAML:** libfyaml (NOT libyaml). libyaml only supports YAML 1.1; OpenAPI 3.x requires YAML 1.2.
 
@@ -121,7 +120,7 @@ podman run --rm --security-opt seccomp=unconfined \
 
 - Two-layer architecture: OAS Model (parse) + Compiled Runtime (validate)
 - yyjson for JSON parsing (not cJSON, not jansson)
-- Regex via `oas_regex_backend_t` vtable (PCRE2 default, libregexp optional)
+- Regex via `oas_regex_backend_t` vtable (QuickJS libregexp, vendored)
 - YAML via libfyaml (NOT libyaml), optional CMake option
 - Pure C libraries only (no C++ dependencies)
 - Linux only
