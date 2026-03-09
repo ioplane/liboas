@@ -11,6 +11,7 @@
 #define LIBOAS_OAS_COMPILER_H
 
 #include <liboas/oas_alloc.h>
+#include <liboas/oas_doc.h>
 #include <liboas/oas_error.h>
 #include <liboas/oas_regex.h>
 #include <liboas/oas_schema.h>
@@ -38,5 +39,21 @@ typedef struct {
  * @brief Free a compiled schema and all resources.
  */
 void oas_compiled_schema_free(oas_compiled_schema_t *compiled);
+
+/**
+ * @brief Compile all schemas in a parsed document for validation.
+ * @param doc     Parsed and $ref-resolved document.
+ * @param config  Compiler configuration.
+ * @param errors  Error list for diagnostics.
+ * @return Compiled document, or nullptr on failure.
+ */
+[[nodiscard]] oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc,
+                                                  const oas_compiler_config_t *config,
+                                                  oas_error_list_t *errors);
+
+/**
+ * @brief Free a compiled document and all compiled schemas.
+ */
+void oas_compiled_doc_free(oas_compiled_doc_t *compiled);
 
 #endif /* LIBOAS_OAS_COMPILER_H */

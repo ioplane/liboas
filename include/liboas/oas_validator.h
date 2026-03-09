@@ -47,4 +47,44 @@ typedef struct {
                                     size_t len, oas_validation_result_t *result,
                                     oas_arena_t *arena);
 
+typedef struct {
+    const char *method;       /**< HTTP method (GET, POST, etc.) */
+    const char *path;         /**< Request path (e.g., "/pets/123") */
+    const char *content_type; /**< Content-Type header (nullable) */
+    const char *body;         /**< Request body (nullable) */
+    size_t body_len;
+} oas_http_request_t;
+
+typedef struct {
+    int status_code;          /**< HTTP status code (200, 404, etc.) */
+    const char *content_type; /**< Content-Type header (nullable) */
+    const char *body;         /**< Response body (nullable) */
+    size_t body_len;
+} oas_http_response_t;
+
+/**
+ * @brief Validate an HTTP request against a compiled OpenAPI document.
+ * @param doc     Compiled document.
+ * @param req     HTTP request to validate.
+ * @param result  Receives validation outcome and errors.
+ * @param arena   Arena for error allocations.
+ * @return 0 on success, negative errno on invalid arguments.
+ */
+[[nodiscard]] int oas_validate_request(const oas_compiled_doc_t *doc, const oas_http_request_t *req,
+                                       oas_validation_result_t *result, oas_arena_t *arena);
+
+/**
+ * @brief Validate an HTTP response against a compiled OpenAPI document.
+ * @param doc     Compiled document.
+ * @param path    Request path (e.g., "/pets/123").
+ * @param method  HTTP method (e.g., "GET").
+ * @param resp    HTTP response to validate.
+ * @param result  Receives validation outcome and errors.
+ * @param arena   Arena for error allocations.
+ * @return 0 on success, negative errno on invalid arguments.
+ */
+[[nodiscard]] int oas_validate_response(const oas_compiled_doc_t *doc, const char *path,
+                                        const char *method, const oas_http_response_t *resp,
+                                        oas_validation_result_t *result, oas_arena_t *arena);
+
 #endif /* LIBOAS_OAS_VALIDATOR_H */
