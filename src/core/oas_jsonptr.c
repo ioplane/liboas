@@ -82,11 +82,12 @@ int oas_jsonptr_parse(const char *pointer, char ***segments, size_t *count, oas_
         return 0;
     }
 
-    /* Must start with '/' per RFC 6901 */
+    /* Must start with '/' per RFC 6901 S3 */
     const char *p = pointer;
-    if (*p == '/') {
-        p++; /* skip leading '/' */
+    if (*p != '/') {
+        return -EINVAL;
     }
+    p++; /* skip leading '/' */
 
     /* Count segments (number of '/' separators + 1) */
     size_t n = 1;
