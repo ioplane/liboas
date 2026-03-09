@@ -52,6 +52,7 @@ struct oas_license {
 
 struct oas_info {
     const char *title;
+    const char *summary;
     const char *description;
     const char *version;
     const char *terms_of_service;
@@ -151,6 +152,22 @@ struct oas_security_req {
     size_t scopes_count;
 };
 
+typedef struct {
+    const char *authorization_url;
+    const char *token_url;
+    const char *refresh_url;
+    const char **scope_names;
+    const char **scope_descriptions;
+    size_t scopes_count;
+} oas_oauth_flow_t;
+
+typedef struct {
+    oas_oauth_flow_t *implicit;
+    oas_oauth_flow_t *password;
+    oas_oauth_flow_t *client_credentials;
+    oas_oauth_flow_t *authorization_code;
+} oas_oauth_flows_t;
+
 struct oas_security_scheme {
     const char *type;   /**< "apiKey", "http", "oauth2", "openIdConnect" */
     const char *name;   /**< (apiKey) header/query/cookie name */
@@ -158,6 +175,8 @@ struct oas_security_scheme {
     const char *scheme; /**< (http) "bearer", "basic", etc. */
     const char *bearer_format;
     const char *description;
+    const char *open_id_connect_url; /**< (openIdConnect) discovery URL */
+    oas_oauth_flows_t *flows;        /**< (oauth2) OAuth2 flow definitions */
 };
 
 struct oas_security_scheme_entry {
@@ -175,11 +194,39 @@ struct oas_tag {
     const char *description;
 };
 
+typedef struct {
+    const char *name;
+    oas_response_t *response;
+} oas_response_component_entry_t;
+
+typedef struct {
+    const char *name;
+    oas_parameter_t *parameter;
+} oas_parameter_component_entry_t;
+
+typedef struct {
+    const char *name;
+    oas_request_body_t *request_body;
+} oas_request_body_component_entry_t;
+
+typedef struct {
+    const char *name;
+    oas_parameter_t *header; /**< Header Object is a subset of Parameter Object */
+} oas_header_component_entry_t;
+
 struct oas_components {
     oas_schema_entry_t *schemas;
     size_t schemas_count;
     oas_security_scheme_entry_t *security_schemes;
     size_t security_schemes_count;
+    oas_response_component_entry_t *responses;
+    size_t responses_count;
+    oas_parameter_component_entry_t *parameters;
+    size_t parameters_count;
+    oas_request_body_component_entry_t *request_bodies;
+    size_t request_bodies_count;
+    oas_header_component_entry_t *headers;
+    size_t headers_count;
 };
 
 struct oas_doc {

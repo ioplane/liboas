@@ -22,6 +22,7 @@ typedef struct oas_compiled_doc oas_compiled_doc_t;
 typedef struct {
     oas_regex_backend_t *regex;
     uint8_t format_policy; /**< oas_format_policy_t */
+    bool borrow_regex;     /**< If true, caller retains regex ownership (default: false) */
 } oas_compiler_config_t;
 
 /**

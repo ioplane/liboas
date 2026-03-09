@@ -109,6 +109,9 @@ add_library(oas_core STATIC
     src/core/oas_jsonptr.c
     src/core/oas_path_match.c
     src/core/oas_regex_libregexp.c
+    src/core/oas_query.c
+    src/core/oas_problem.c
+    src/core/oas_negotiate.c
 )
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -262,6 +265,61 @@ if(DOXYGEN_FOUND)
     )
 endif()
 
+# ── OpenAPI compatibility checks (optional, requires Java) ──────────────────
+find_program(JAVA_EXECUTABLE java)
+if(JAVA_EXECUTABLE)
+    set(OAS_TOOLS_DIR "${CMAKE_BINARY_DIR}/oas-tools")
+    set(OAS_TEST_SPEC "${CMAKE_SOURCE_DIR}/tests/fixtures/petstore-3.2.json")
+
+    set(STYLE_VALIDATOR_VERSION "1.11")
+    set(OPENAPI_GENERATOR_VERSION "7.12.0")
+    set(STYLE_VALIDATOR_JAR
+        "${OAS_TOOLS_DIR}/openapi-style-validator-cli-${STYLE_VALIDATOR_VERSION}-all.jar")
+    set(OPENAPI_GENERATOR_JAR
+        "${OAS_TOOLS_DIR}/openapi-generator-cli-${OPENAPI_GENERATOR_VERSION}.jar")
+
+    set(STYLE_VALIDATOR_URL
+        "https://repo1.maven.org/maven2/org/openapitools/openapistylevalidator/openapi-style-validator-cli/${STYLE_VALIDATOR_VERSION}/openapi-style-validator-cli-${STYLE_VALIDATOR_VERSION}-all.jar")
+    set(OPENAPI_GENERATOR_URL
+        "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/${OPENAPI_GENERATOR_VERSION}/openapi-generator-cli-${OPENAPI_GENERATOR_VERSION}.jar")
+
+    # Download JARs at build time (only if missing)
+    add_custom_command(
+        OUTPUT "${STYLE_VALIDATOR_JAR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${OAS_TOOLS_DIR}"
+        COMMAND curl -fsSL -o "${STYLE_VALIDATOR_JAR}" "${STYLE_VALIDATOR_URL}"
+        COMMENT "Downloading openapi-style-validator ${STYLE_VALIDATOR_VERSION}"
+        VERBATIM
+    )
+
+    add_custom_command(
+        OUTPUT "${OPENAPI_GENERATOR_JAR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${OAS_TOOLS_DIR}"
+        COMMAND curl -fsSL -o "${OPENAPI_GENERATOR_JAR}" "${OPENAPI_GENERATOR_URL}"
+        COMMENT "Downloading openapi-generator ${OPENAPI_GENERATOR_VERSION}"
+        VERBATIM
+    )
+
+    add_custom_target(oas-style-check
+        DEPENDS "${STYLE_VALIDATOR_JAR}"
+        COMMAND ${JAVA_EXECUTABLE} -jar "${STYLE_VALIDATOR_JAR}" -s "${OAS_TEST_SPEC}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running openapi-style-validator on ${OAS_TEST_SPEC}"
+        VERBATIM
+    )
+
+    add_custom_target(oas-compat-check
+        DEPENDS "${OPENAPI_GENERATOR_JAR}"
+        COMMAND ${JAVA_EXECUTABLE} -jar "${OPENAPI_GENERATOR_JAR}"
+            validate -i "${OAS_TEST_SPEC}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running openapi-generator validate on ${OAS_TEST_SPEC}"
+        VERBATIM
+    )
+else()
+    message(STATUS "Java not found — oas-style-check and oas-compat-check targets disabled")
+endif()
+
 # ── Testing ──────────────────────────────────────────────────────────────────
 if(BUILD_TESTING)
     enable_testing()
@@ -275,6 +333,7 @@ if(BUILD_TESTING)
     oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
     oas_add_test(test_jsonptr tests/unit/test_jsonptr.c oas_core)
     oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
+    oas_add_test(test_ref_conditional tests/unit/test_ref_conditional.c oas_parser)
     oas_add_test(test_regex tests/unit/test_regex.c oas_core)
     oas_add_test(test_format tests/unit/test_format.c oas_compiler)
     oas_add_test(test_instruction tests/unit/test_instruction.c oas_compiler)
@@ -285,6 +344,9 @@ if(BUILD_TESTING)
     oas_add_test(test_emitter tests/unit/test_emitter.c oas_emitter)
     oas_add_test(test_builder tests/unit/test_builder.c oas_model oas_emitter)
     oas_add_test(test_adapter tests/unit/test_adapter.c oas_adapter oas_model)
+    oas_add_test(test_doc_compiler tests/unit/test_doc_compiler.c oas_validator oas_parser)
+    oas_add_test(test_schema_keywords tests/unit/test_schema_keywords.c oas_validator oas_parser)
+    oas_add_test(test_framework_core tests/unit/test_framework_core.c oas_adapter oas_model)
     if(OAS_YAML)
         oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
     endif()

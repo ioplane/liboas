@@ -3,6 +3,7 @@
 #include <liboas/oas_alloc.h>
 #include <liboas/oas_error.h>
 
+#include <errno.h>
 #include <string.h>
 #include <unity.h>
 
@@ -180,6 +181,39 @@ void test_jsonptr_resolve_ex_errors(void)
     TEST_ASSERT_TRUE(oas_error_list_has_errors(errors2));
 }
 
+/* ── Strict validation tests (RFC 6901 S3) ────────────────────────────── */
+
+void test_jsonptr_no_leading_slash(void)
+{
+    /* "foo/bar" without leading '/' must be rejected */
+    char **segs = nullptr;
+    size_t n = 0;
+    int rc = oas_jsonptr_parse("foo/bar", &segs, &n, arena);
+    TEST_ASSERT_EQUAL_INT(-EINVAL, rc);
+}
+
+void test_jsonptr_empty_string_valid(void)
+{
+    /* "" is a valid JSON Pointer (references whole document) */
+    char **segs = nullptr;
+    size_t n = 0;
+    int rc = oas_jsonptr_parse("", &segs, &n, arena);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    TEST_ASSERT_EQUAL_UINT64(0, n);
+    TEST_ASSERT_NULL(segs);
+}
+
+void test_jsonptr_root_slash_valid(void)
+{
+    /* "/" is valid (empty key segment) */
+    char **segs = nullptr;
+    size_t n = 0;
+    int rc = oas_jsonptr_parse("/", &segs, &n, arena);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    TEST_ASSERT_EQUAL_UINT64(1, n);
+    TEST_ASSERT_EQUAL_STRING("", segs[0]);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -195,5 +229,8 @@ int main(void)
     RUN_TEST(test_jsonptr_parse_segments);
     RUN_TEST(test_jsonptr_from_ref);
     RUN_TEST(test_jsonptr_resolve_ex_errors);
+    RUN_TEST(test_jsonptr_no_leading_slash);
+    RUN_TEST(test_jsonptr_empty_string_valid);
+    RUN_TEST(test_jsonptr_root_slash_valid);
     return UNITY_END();
 }

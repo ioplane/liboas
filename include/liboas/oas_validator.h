@@ -23,6 +23,16 @@ typedef struct {
     oas_error_list_t *errors;
 } oas_validation_result_t;
 
+typedef struct {
+    const char *name;
+    const char *value;
+} oas_http_header_t;
+
+typedef struct {
+    const char *name;
+    const char *value;
+} oas_http_query_param_t;
+
 /**
  * @brief Validate a yyjson value against a compiled schema.
  * @param compiled  Compiled schema bytecode.
@@ -53,6 +63,11 @@ typedef struct {
     const char *content_type; /**< Content-Type header (nullable) */
     const char *body;         /**< Request body (nullable) */
     size_t body_len;
+    const oas_http_header_t *headers; /**< Request headers (nullable) */
+    size_t headers_count;
+    const oas_http_query_param_t *query; /**< Query parameters (nullable) */
+    size_t query_count;
+    const char *query_string; /**< Raw query string (nullable) */
 } oas_http_request_t;
 
 typedef struct {
@@ -60,6 +75,8 @@ typedef struct {
     const char *content_type; /**< Content-Type header (nullable) */
     const char *body;         /**< Response body (nullable) */
     size_t body_len;
+    const oas_http_header_t *headers; /**< Response headers (nullable) */
+    size_t headers_count;
 } oas_http_response_t;
 
 /**
