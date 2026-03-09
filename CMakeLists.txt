@@ -108,6 +108,7 @@ add_library(oas_core STATIC
     src/core/oas_error.c
     src/core/oas_intern.c
     src/core/oas_jsonptr.c
+    src/core/oas_path_match.c
     src/core/oas_regex_libregexp.c
 )
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
@@ -141,10 +142,11 @@ target_link_libraries(oas_parser PUBLIC oas_core oas_model)
 add_library(oas_compiler STATIC
     src/compiler/oas_format.c
     src/compiler/oas_instruction.c
+    src/compiler/oas_compiler.c
 )
 target_include_directories(oas_compiler PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_compiler PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(oas_compiler PUBLIC oas_core)
+target_link_libraries(oas_compiler PUBLIC oas_core oas_model)
 
 # ── Code quality targets ────────────────────────────────────────────────────
 
@@ -232,4 +234,6 @@ if(BUILD_TESTING)
     oas_add_test(test_regex tests/unit/test_regex.c oas_core)
     oas_add_test(test_format tests/unit/test_format.c oas_compiler)
     oas_add_test(test_instruction tests/unit/test_instruction.c oas_compiler)
+    oas_add_test(test_compiler tests/unit/test_compiler.c oas_compiler)
+    oas_add_test(test_path_match tests/unit/test_path_match.c oas_core)
 endif()
