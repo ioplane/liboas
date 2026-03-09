@@ -121,6 +121,8 @@ target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES} libregexp)
 add_library(oas_model STATIC
     src/model/oas_schema.c
     src/model/oas_doc.c
+    src/model/oas_schema_builder.c
+    src/model/oas_doc_builder.c
 )
 target_include_directories(oas_model PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_model PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -272,6 +274,7 @@ if(BUILD_TESTING)
     oas_add_test(test_validator tests/unit/test_validator.c oas_validator)
     oas_add_test(test_request tests/unit/test_request.c oas_validator oas_parser)
     oas_add_test(test_emitter tests/unit/test_emitter.c oas_emitter)
+    oas_add_test(test_builder tests/unit/test_builder.c oas_model oas_emitter)
     if(OAS_YAML)
         oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
     endif()
