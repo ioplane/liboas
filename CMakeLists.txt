@@ -265,6 +265,61 @@ if(DOXYGEN_FOUND)
     )
 endif()
 
+# ── OpenAPI compatibility checks (optional, requires Java) ──────────────────
+find_program(JAVA_EXECUTABLE java)
+if(JAVA_EXECUTABLE)
+    set(OAS_TOOLS_DIR "${CMAKE_BINARY_DIR}/oas-tools")
+    set(OAS_TEST_SPEC "${CMAKE_SOURCE_DIR}/tests/fixtures/petstore-3.2.json")
+
+    set(STYLE_VALIDATOR_VERSION "1.11")
+    set(OPENAPI_GENERATOR_VERSION "7.12.0")
+    set(STYLE_VALIDATOR_JAR
+        "${OAS_TOOLS_DIR}/openapi-style-validator-cli-${STYLE_VALIDATOR_VERSION}-all.jar")
+    set(OPENAPI_GENERATOR_JAR
+        "${OAS_TOOLS_DIR}/openapi-generator-cli-${OPENAPI_GENERATOR_VERSION}.jar")
+
+    set(STYLE_VALIDATOR_URL
+        "https://repo1.maven.org/maven2/org/openapitools/openapistylevalidator/openapi-style-validator-cli/${STYLE_VALIDATOR_VERSION}/openapi-style-validator-cli-${STYLE_VALIDATOR_VERSION}-all.jar")
+    set(OPENAPI_GENERATOR_URL
+        "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/${OPENAPI_GENERATOR_VERSION}/openapi-generator-cli-${OPENAPI_GENERATOR_VERSION}.jar")
+
+    # Download JARs at build time (only if missing)
+    add_custom_command(
+        OUTPUT "${STYLE_VALIDATOR_JAR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${OAS_TOOLS_DIR}"
+        COMMAND curl -fsSL -o "${STYLE_VALIDATOR_JAR}" "${STYLE_VALIDATOR_URL}"
+        COMMENT "Downloading openapi-style-validator ${STYLE_VALIDATOR_VERSION}"
+        VERBATIM
+    )
+
+    add_custom_command(
+        OUTPUT "${OPENAPI_GENERATOR_JAR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${OAS_TOOLS_DIR}"
+        COMMAND curl -fsSL -o "${OPENAPI_GENERATOR_JAR}" "${OPENAPI_GENERATOR_URL}"
+        COMMENT "Downloading openapi-generator ${OPENAPI_GENERATOR_VERSION}"
+        VERBATIM
+    )
+
+    add_custom_target(oas-style-check
+        DEPENDS "${STYLE_VALIDATOR_JAR}"
+        COMMAND ${JAVA_EXECUTABLE} -jar "${STYLE_VALIDATOR_JAR}" -s "${OAS_TEST_SPEC}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running openapi-style-validator on ${OAS_TEST_SPEC}"
+        VERBATIM
+    )
+
+    add_custom_target(oas-compat-check
+        DEPENDS "${OPENAPI_GENERATOR_JAR}"
+        COMMAND ${JAVA_EXECUTABLE} -jar "${OPENAPI_GENERATOR_JAR}"
+            validate -i "${OAS_TEST_SPEC}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running openapi-generator validate on ${OAS_TEST_SPEC}"
+        VERBATIM
+    )
+else()
+    message(STATUS "Java not found — oas-style-check and oas-compat-check targets disabled")
+endif()
+
 # ── Testing ──────────────────────────────────────────────────────────────────
 if(BUILD_TESTING)
     enable_testing()
