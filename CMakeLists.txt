@@ -47,7 +47,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(YYJSON REQUIRED yyjson)
 
 # PCRE2 (optional, for pattern validation)
-pkg_check_modules(PCRE2 libpcre2-8)
+pkg_check_modules(PCRE2 pcre2-8)
 
 # ── Unity test framework ────────────────────────────────────────────────────
 set(UNITY_SRC "/usr/local/src/unity")
@@ -95,29 +95,19 @@ endmacro()
 
 # ── Source files ─────────────────────────────────────────────────────────────
 
-# Core library: arena allocator, error handling, string interning, regex
-set(OAS_CORE_SOURCES
+# Core library: arena allocator, error handling, string interning
+add_library(oas_core STATIC
     src/core/oas_alloc.c
     src/core/oas_error.c
     src/core/oas_intern.c
     src/core/oas_jsonptr.c
 )
-if(PCRE2_FOUND)
-    list(APPEND OAS_CORE_SOURCES src/core/oas_regex_pcre2.c)
-endif()
-add_library(oas_core STATIC ${OAS_CORE_SOURCES})
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(oas_core PUBLIC _GNU_SOURCE)
 target_include_directories(oas_core PUBLIC ${YYJSON_INCLUDE_DIRS})
 target_link_directories(oas_core PUBLIC ${YYJSON_LIBRARY_DIRS})
 target_link_libraries(oas_core PUBLIC ${YYJSON_LIBRARIES})
-if(PCRE2_FOUND)
-    target_compile_definitions(oas_core PUBLIC OAS_HAVE_PCRE2)
-    target_include_directories(oas_core PUBLIC ${PCRE2_INCLUDE_DIRS})
-    target_link_directories(oas_core PUBLIC ${PCRE2_LIBRARY_DIRS})
-    target_link_libraries(oas_core PUBLIC ${PCRE2_LIBRARIES})
-endif()
 
 # Model library: schema and document types
 add_library(oas_model STATIC
@@ -220,7 +210,4 @@ if(BUILD_TESTING)
     oas_add_test(test_doc_parser tests/unit/test_doc_parser.c oas_parser)
     oas_add_test(test_jsonptr tests/unit/test_jsonptr.c oas_core)
     oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
-    if(PCRE2_FOUND)
-        oas_add_test(test_regex tests/unit/test_regex.c oas_core)
-    endif()
 endif()
