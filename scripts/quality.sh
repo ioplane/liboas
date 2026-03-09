@@ -58,6 +58,7 @@ if command -v cppcheck >/dev/null 2>&1; then
         --error-exitcode=1 --inline-suppr \
         --project="${BUILD_DIR}/compile_commands.json" \
         --suppress='*:/usr/local/src/unity/*' \
+        -i vendor/ \
         -q 2>&1; then
         ok "cppcheck clean"
     else
@@ -90,6 +91,7 @@ if command -v pvs-studio-analyzer >/dev/null 2>&1; then
             -f "${BUILD_DIR}/compile_commands.json" \
             -o "${PVS_LOG}" \
             -e /usr/local/src/unity/ \
+            -e "$(pwd)/vendor/" \
             ${PVS_SUPPRESS_ARG} \
             -j"${NPROC}" 2>&1 | grep -v '^\[' || true
 
@@ -120,6 +122,7 @@ if command -v CodeChecker >/dev/null 2>&1; then
     CC_SKIP=$(mktemp)
     cat > "${CC_SKIP}" <<'SKIP'
 -/usr/local/src/unity/*
+-*/vendor/*
 SKIP
 
     CC_BASELINE=".codechecker.baseline"

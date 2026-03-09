@@ -49,3 +49,6 @@ docs/tmp/
 # Static analysis output
 PVS-Studio.log
 *.pvs.log
+
+# Worktrees
+.worktrees/
