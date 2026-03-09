@@ -142,6 +142,7 @@ add_library(oas_compiler STATIC
     src/compiler/oas_format.c
     src/compiler/oas_instruction.c
     src/compiler/oas_compiler.c
+    src/compiler/oas_doc_compiler.c
 )
 target_include_directories(oas_compiler PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_compiler PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -150,11 +151,35 @@ target_link_libraries(oas_compiler PUBLIC oas_core oas_model)
 # Validator library: validation VM executing compiled bytecode
 add_library(oas_validator STATIC
     src/validator/oas_validator.c
+    src/validator/oas_request.c
 )
 target_include_directories(oas_validator PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_validator PUBLIC oas_compiler oas_core)
 target_link_libraries(oas_validator PRIVATE m)
+
+# ── Optional YAML support via libfyaml ──────────────────────────────────────
+option(OAS_YAML "Enable YAML 1.2 parsing via libfyaml" OFF)
+if(OAS_YAML)
+    pkg_check_modules(LIBFYAML REQUIRED libfyaml)
+    add_library(oas_yaml STATIC
+        src/parser/oas_yaml.c
+    )
+    target_include_directories(oas_yaml PUBLIC ${CMAKE_SOURCE_DIR}/include)
+    target_include_directories(oas_yaml PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(oas_yaml PUBLIC ${LIBFYAML_INCLUDE_DIRS})
+    target_link_directories(oas_yaml PUBLIC ${LIBFYAML_LIBRARY_DIRS})
+    target_link_libraries(oas_yaml PUBLIC oas_core ${LIBFYAML_LIBRARIES})
+    target_compile_definitions(oas_yaml PRIVATE _GNU_SOURCE)
+endif()
+
+# Emitter library: JSON/YAML emission
+add_library(oas_emitter STATIC
+    src/emitter/oas_emitter.c
+)
+target_include_directories(oas_emitter PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_emitter PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(oas_emitter PUBLIC oas_core oas_model)
 
 # ── Code quality targets ────────────────────────────────────────────────────
 
@@ -245,4 +270,9 @@ if(BUILD_TESTING)
     oas_add_test(test_compiler tests/unit/test_compiler.c oas_compiler)
     oas_add_test(test_path_match tests/unit/test_path_match.c oas_core)
     oas_add_test(test_validator tests/unit/test_validator.c oas_validator)
+    oas_add_test(test_request tests/unit/test_request.c oas_validator oas_parser)
+    oas_add_test(test_emitter tests/unit/test_emitter.c oas_emitter)
+    if(OAS_YAML)
+        oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
+    endif()
 endif()
