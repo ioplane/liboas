@@ -1,10 +1,14 @@
 #include "oas_regex.h"
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
 #include "libregexp.h"
+#pragma GCC diagnostic pop
 
 /* Compiled pattern wrapping libregexp bytecode */
 struct oas_compiled_pattern {
@@ -15,11 +19,11 @@ struct oas_compiled_pattern {
 
 /* libregexp required callbacks */
 
-int lre_check_stack_overflow(void *opaque, size_t alloca_size)
+bool lre_check_stack_overflow(void *opaque, size_t alloca_size)
 {
     (void)opaque;
     (void)alloca_size;
-    return 0;
+    return false;
 }
 
 int lre_check_timeout(void *opaque)
