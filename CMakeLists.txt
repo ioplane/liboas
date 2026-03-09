@@ -291,4 +291,33 @@ if(BUILD_TESTING)
 
     # Integration tests
     oas_add_test(test_petstore tests/integration/test_petstore.c oas_adapter oas_model)
+
+    # LibFuzzer targets (Clang only)
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        macro(oas_add_fuzzer FUZZ_NAME FUZZ_SRC)
+            add_executable(${FUZZ_NAME} ${FUZZ_SRC})
+            target_link_libraries(${FUZZ_NAME} PRIVATE ${ARGN})
+            target_include_directories(${FUZZ_NAME} PRIVATE
+                ${CMAKE_SOURCE_DIR}/include
+                ${CMAKE_SOURCE_DIR}/src
+            )
+            target_compile_definitions(${FUZZ_NAME} PRIVATE _GNU_SOURCE)
+            target_compile_options(${FUZZ_NAME} PRIVATE
+                -fsanitize=fuzzer -Wno-missing-prototypes
+            )
+            target_link_options(${FUZZ_NAME} PRIVATE -fsanitize=fuzzer -no-pie)
+            set_target_properties(${FUZZ_NAME} PROPERTIES
+                POSITION_INDEPENDENT_CODE OFF
+            )
+        endmacro()
+
+        oas_add_fuzzer(fuzz_json_parse tests/fuzz/fuzz_json_parse.c oas_parser)
+        oas_add_fuzzer(fuzz_schema_parse tests/fuzz/fuzz_schema_parse.c oas_parser)
+        oas_add_fuzzer(fuzz_regex tests/fuzz/fuzz_regex.c oas_core)
+        oas_add_fuzzer(fuzz_format tests/fuzz/fuzz_format.c oas_compiler)
+        oas_add_fuzzer(fuzz_emitter tests/fuzz/fuzz_emitter.c oas_emitter oas_parser)
+        oas_add_fuzzer(fuzz_jsonptr tests/fuzz/fuzz_jsonptr.c oas_core)
+        oas_add_fuzzer(fuzz_path_match tests/fuzz/fuzz_path_match.c oas_core)
+        oas_add_fuzzer(fuzz_validator tests/fuzz/fuzz_validator.c oas_validator)
+    endif()
 endif()
