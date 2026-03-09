@@ -101,4 +101,26 @@ const char *oas_adapter_spec_json(const oas_adapter_t *adapter, size_t *out_len)
  */
 [[nodiscard]] char *oas_scalar_html(const char *title, const char *spec_url, size_t *out_len);
 
+typedef struct {
+    const char *operation_id;  /**< Operation ID if defined (nullable) */
+    const char *path_template; /**< Matched path template (e.g., "/pets/{petId}") */
+    const char *method;        /**< HTTP method */
+    const char **param_names;  /**< Extracted path parameter names */
+    const char **param_values; /**< Extracted path parameter values */
+    size_t param_count;        /**< Number of extracted path parameters */
+} oas_matched_operation_t;
+
+/**
+ * @brief Look up an operation by method and path.
+ * @param adapter Adapter instance.
+ * @param method  HTTP method (e.g., "GET").
+ * @param path    Request path (e.g., "/pets/123").
+ * @param out     Receives matched operation info.
+ * @param arena   Arena for result allocations.
+ * @return 0 on success, -ENOENT if not found, negative errno on error.
+ */
+[[nodiscard]] int oas_adapter_find_operation(const oas_adapter_t *adapter, const char *method,
+                                             const char *path, oas_matched_operation_t *out,
+                                             oas_arena_t *arena);
+
 #endif /* LIBOAS_OAS_ADAPTER_H */
