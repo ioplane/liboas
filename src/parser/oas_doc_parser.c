@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "oas_json.h"
+#include "oas_ref.h"
 #include "oas_schema_parser.h"
 
 static oas_info_t *parse_info(oas_arena_t *arena, yyjson_val *obj,
@@ -572,6 +573,12 @@ oas_doc_t *oas_doc_parse(oas_arena_t *arena, const char *json, size_t len, oas_e
 
     /* Store yyjson_doc so it can be freed via oas_doc_free() */
     doc->_json_doc = jdoc.doc;
+
+    /* Resolve all $ref in the document */
+    oas_ref_ctx_t *ref_ctx = oas_ref_ctx_create(arena, jdoc.root);
+    if (ref_ctx) {
+        (void)oas_ref_resolve_all(ref_ctx, doc, errors);
+    }
 
     return doc;
 }
