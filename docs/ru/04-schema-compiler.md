@@ -9,27 +9,38 @@
 
 ## Конвейер компиляции
 
-```
-oas_schema_t tree
-      |
-      v
-oas_schema_compile()
-      |
-      +-- emit type checks
-      +-- emit constraint instructions (min/max/pattern/format)
-      +-- emit property traversals (ENTER_PROPERTY)
-      +-- emit array item traversals (ENTER_ITEMS, ENTER_PREFIX_ITEM)
-      +-- emit composition branches (BRANCH_ALLOF/ANYOF/ONEOF)
-      +-- emit conditional blocks (COND_IF/THEN/ELSE)
-      +-- compile regex patterns via backend
-      +-- resolve format validators
-      +-- emit OAS_OP_END
-      |
-      v
-oas_compiled_schema_t
-  +-- program (instruction array)
-  +-- regex backend reference
-  +-- compiled patterns array
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    INPUT["Дерево oas_schema_t"]
+
+    subgraph COMPILE["oas_schema_compile()"]
+        direction TB
+        TYPES["Генерация проверок типов"]
+        CONSTR["Генерация ограничений<br/>min / max / pattern / format"]
+        PROPS["Обход свойств<br/>ENTER_PROPERTY"]
+        ARRAYS["Обход элементов массива<br/>ENTER_ITEMS / ENTER_PREFIX_ITEM"]
+        COMPOSE["Ветвление композиции<br/>BRANCH_ALLOF / ANYOF / ONEOF"]
+        COND["Условные блоки<br/>COND_IF / THEN / ELSE"]
+        REGEX["Компиляция regex-паттернов<br/>через vtable бэкенда"]
+        FMT["Привязка валидаторов формата"]
+        ENDOP["Генерация OAS_OP_END"]
+
+        TYPES --> CONSTR --> PROPS --> ARRAYS
+        ARRAYS --> COMPOSE --> COND --> REGEX
+        REGEX --> FMT --> ENDOP
+    end
+
+    OUTPUT["oas_compiled_schema_t"]
+    PROG["program — массив инструкций"]
+    RREF["ссылка на regex-бэкенд"]
+    PATS["массив скомпилированных паттернов"]
+
+    INPUT --> COMPILE
+    COMPILE --> OUTPUT
+    OUTPUT --- PROG
+    OUTPUT --- RREF
+    OUTPUT --- PATS
 ```
 
 ## API

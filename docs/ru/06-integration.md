@@ -36,6 +36,35 @@ oas_adapter_destroy(adapter);
 
 Адаптер внутренне выполняет следующее:
 
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+graph TD
+    subgraph specfirst["Spec-First"]
+        JSON["JSON-строка спецификации"]
+        PARSE["Парсинг → oas_doc_t"]
+        JSON --> PARSE
+    end
+
+    subgraph codefirst["Code-First"]
+        BUILD["Builder API"]
+        DOC2["oas_doc_t"]
+        BUILD --> DOC2
+    end
+
+    RESOLVE["Разрешение $ref"]
+    COMPILE["Компиляция всех схем"]
+    CACHE["Кэширование JSON спецификации"]
+    ADAPTER["oas_adapter_t готов"]
+
+    PARSE --> RESOLVE
+    DOC2 --> RESOLVE
+    RESOLVE --> COMPILE --> CACHE --> ADAPTER
+
+    ADAPTER --> VREQ["Валидация запросов"]
+    ADAPTER --> VRESP["Валидация ответов"]
+    ADAPTER --> SERVE["Раздача спецификации / Scalar UI"]
+```
+
 1. Создаёт arena и разбирает JSON в `oas_doc_t`.
 2. Разрешает все ссылки `$ref`.
 3. Компилирует все схемы с regex-бэкендом по умолчанию.
