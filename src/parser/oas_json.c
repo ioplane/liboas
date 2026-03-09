@@ -34,6 +34,12 @@ int oas_json_parse_file(const char *path, oas_json_doc_t *out, oas_error_list_t 
         return -EINVAL;
     }
 
+    long fsize = 0;
+    size_t size = 0;
+    size_t read_bytes = 0;
+    char *buf = nullptr;
+    int rc = 0;
+
     FILE *fp = fopen(path, "rb");
     if (!fp) {
         if (errors) {
@@ -50,7 +56,7 @@ int oas_json_parse_file(const char *path, oas_json_doc_t *out, oas_error_list_t 
         goto io_fail;
     }
 
-    long fsize = ftell(fp);
+    fsize = ftell(fp);
     if (fsize < 0) {
         goto io_fail;
     }
@@ -59,8 +65,8 @@ int oas_json_parse_file(const char *path, oas_json_doc_t *out, oas_error_list_t 
         goto io_fail;
     }
 
-    size_t size = (size_t)fsize;
-    char *buf = malloc(size + 1);
+    size = (size_t)fsize;
+    buf = malloc(size + 1);
     if (!buf) {
         (void)fclose(fp);
         out->doc = nullptr;
@@ -68,7 +74,7 @@ int oas_json_parse_file(const char *path, oas_json_doc_t *out, oas_error_list_t 
         return -ENOMEM;
     }
 
-    size_t read_bytes = fread(buf, 1, size, fp);
+    read_bytes = fread(buf, 1, size, fp);
     (void)fclose(fp);
 
     if (read_bytes != size) {
@@ -79,7 +85,7 @@ int oas_json_parse_file(const char *path, oas_json_doc_t *out, oas_error_list_t 
     }
     buf[size] = '\0';
 
-    int rc = oas_json_parse(buf, size, out, errors);
+    rc = oas_json_parse(buf, size, out, errors);
     free(buf);
     return rc;
 

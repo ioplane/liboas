@@ -5,23 +5,28 @@
 
 static oas_arena_t *arena;
 static oas_error_list_t *errors;
+static oas_doc_t *parsed_doc;
 
 void setUp(void)
 {
     arena = oas_arena_create(0);
     errors = oas_error_list_create(arena);
+    parsed_doc = nullptr;
 }
 
 void tearDown(void)
 {
+    oas_doc_free(parsed_doc);
     oas_arena_destroy(arena);
     arena = nullptr;
     errors = nullptr;
+    parsed_doc = nullptr;
 }
 
 static oas_doc_t *parse_str(const char *json)
 {
-    return oas_doc_parse(arena, json, strlen(json), errors);
+    parsed_doc = oas_doc_parse(arena, json, strlen(json), errors);
+    return parsed_doc;
 }
 
 void test_doc_parse_minimal(void)
@@ -38,6 +43,7 @@ void test_doc_parse_minimal(void)
 void test_doc_parse_petstore(void)
 {
     oas_doc_t *doc = oas_doc_parse_file(arena, "tests/fixtures/petstore.json", errors);
+    parsed_doc = doc;
     TEST_ASSERT_NOT_NULL_MESSAGE(doc, "petstore.json should parse successfully");
     TEST_ASSERT_EQUAL_STRING("3.2.0", doc->openapi);
     TEST_ASSERT_EQUAL_STRING("Petstore", doc->info->title);

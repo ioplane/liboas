@@ -17,7 +17,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         char *json = oas_doc_emit_json(doc, nullptr, nullptr);
         oas_emit_free(json);
     }
-
+    oas_doc_free(doc);
     oas_arena_destroy(arena);
     return 0;
 }

@@ -200,6 +200,7 @@ void test_ref_resolve_all_schemas(void)
     TEST_ASSERT_EQUAL_PTR(pet_schema, pet_ref_schema->ref_resolved);
 
     yyjson_doc_free(jdoc);
+    oas_doc_free(doc);
 }
 
 void test_ref_fragment_only(void)

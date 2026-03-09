@@ -69,7 +69,7 @@ void oas_arena_destroy(oas_arena_t *arena)
     free(arena);
 }
 
-static size_t align_up(size_t offset, size_t align)
+static uintptr_t align_up(uintptr_t offset, size_t align)
 {
     return (offset + align - 1) & ~(align - 1);
 }
@@ -86,7 +86,9 @@ void *oas_arena_alloc(oas_arena_t *arena, size_t size, size_t align)
     }
 
     oas_arena_block_t *block = arena->current;
-    size_t aligned_offset = align_up(block->used, align);
+    /* Align relative to actual memory address, not just offset */
+    uintptr_t base = (uintptr_t)block->data;
+    size_t aligned_offset = (size_t)(align_up(base + block->used, align) - base);
 
     if (aligned_offset + size <= block->capacity) {
         void *ptr = &block->data[aligned_offset];
@@ -111,7 +113,8 @@ void *oas_arena_alloc(oas_arena_t *arena, size_t size, size_t align)
     block->next = new_block;
     arena->current = new_block;
 
-    aligned_offset = align_up(new_block->used, align);
+    uintptr_t new_base = (uintptr_t)new_block->data;
+    aligned_offset = (size_t)(align_up(new_base + new_block->used, align) - new_base);
     void *ptr = &new_block->data[aligned_offset];
     new_block->used = aligned_offset + size;
     arena->total_allocated += size;

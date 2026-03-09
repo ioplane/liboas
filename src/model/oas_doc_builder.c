@@ -207,12 +207,16 @@ static oas_operation_t *build_operation(oas_arena_t *arena, const oas_op_builder
             }
 
             for (size_t i = 0; i < resp_count; i++) {
-                /* Format status code as string */
+                /* Format status code as string (HTTP status codes are 100-599) */
+                int status = op->responses[i].status;
+                if (status < 100 || status > 999) {
+                    status = 0;
+                }
                 char *status_str = oas_arena_alloc(arena, 4, 1);
                 if (!status_str) {
                     return nullptr;
                 }
-                (void)snprintf(status_str, 4, "%d", op->responses[i].status);
+                (void)snprintf(status_str, 4, "%d", status);
 
                 oas_response_t *resp =
                     oas_arena_alloc(arena, sizeof(*resp), _Alignof(oas_response_t));

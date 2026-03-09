@@ -570,10 +570,8 @@ oas_doc_t *oas_doc_parse(oas_arena_t *arena, const char *json, size_t len, oas_e
         }
     }
 
-    /* Note: jdoc is NOT freed — string pointers reference yyjson memory.
-     * The yyjson_doc lifetime must match oas_doc_t usage. In a real
-     * application, the caller should manage the yyjson_doc lifetime.
-     * For now, the test fixture owns the JSON string. */
+    /* Store yyjson_doc so it can be freed via oas_doc_free() */
+    doc->_json_doc = jdoc.doc;
 
     return doc;
 }

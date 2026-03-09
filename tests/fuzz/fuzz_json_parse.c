@@ -10,7 +10,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (!arena) {
         return 0;
     }
-    (void)oas_doc_parse(arena, (const char *)data, size, nullptr);
+    oas_doc_t *doc = oas_doc_parse(arena, (const char *)data, size, nullptr);
+    oas_doc_free(doc);
     oas_arena_destroy(arena);
     return 0;
 }

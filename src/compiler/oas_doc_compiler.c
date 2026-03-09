@@ -45,6 +45,7 @@ struct oas_compiled_doc {
     oas_compiled_schema_t **all_schemas;
     size_t all_schemas_count;
     size_t all_schemas_capacity;
+    oas_regex_backend_t *regex; /**< Owned regex backend (freed on destroy) */
     oas_arena_t *arena;
 };
 
@@ -276,6 +277,9 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
         return nullptr;
     }
 
+    size_t total_ops = 0;
+    size_t op_idx = 0;
+
     oas_compiled_doc_t *cdoc =
         oas_arena_alloc(doc_arena, sizeof(*cdoc), _Alignof(oas_compiled_doc_t));
     if (!cdoc) {
@@ -284,6 +288,9 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
     }
     memset(cdoc, 0, sizeof(*cdoc));
     cdoc->arena = doc_arena;
+    if (config && config->regex) {
+        cdoc->regex = config->regex;
+    }
 
     /* Build path matcher from templates */
     if (doc->paths_count > 0) {
@@ -302,7 +309,7 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
     }
 
     /* Allocate operations array */
-    size_t total_ops = count_operations(doc);
+    total_ops = count_operations(doc);
     if (total_ops > 0) {
         cdoc->operations = oas_arena_alloc(doc_arena, total_ops * sizeof(*cdoc->operations),
                                            _Alignof(compiled_operation_t));
@@ -313,7 +320,6 @@ oas_compiled_doc_t *oas_doc_compile(const oas_doc_t *doc, const oas_compiler_con
     }
 
     /* Compile each operation */
-    size_t op_idx = 0;
     for (size_t i = 0; i < doc->paths_count; i++) {
         const oas_path_item_t *item = doc->paths[i].item;
         if (!item) {
@@ -362,6 +368,11 @@ void oas_compiled_doc_free(oas_compiled_doc_t *compiled)
         oas_compiled_schema_free(compiled->all_schemas[i]);
     }
     free(compiled->all_schemas);
+
+    /* Free owned regex backend */
+    if (compiled->regex) {
+        compiled->regex->destroy(compiled->regex);
+    }
 
     /* Arena owns matcher, operations, and the compiled_doc struct itself */
     oas_arena_t *arena = compiled->arena;
