@@ -1,0 +1,271 @@
+# liboas development image
+# Standalone build from OracleLinux 10 — no external image dependency.
+#
+# Includes: Clang 22, GCC 15, CMake, yyjson, PCRE2, libfyaml, Unity,
+#           PVS-Studio, CodeChecker, cppcheck, Doxygen, mold linker.
+#
+# Build:
+#   podman build -t liboas-dev:latest -f Containerfile.dev .
+#
+# Run interactively:
+#   podman run --rm -it --security-opt seccomp=unconfined \
+#     -v /opt/projects/repositories/liboas:/workspace:Z \
+#     localhost/liboas-dev:latest
+#
+# Run quality pipeline:
+#   podman run --rm --security-opt seccomp=unconfined \
+#     --env-file ../../.env \
+#     -v /opt/projects/repositories/liboas:/workspace:Z \
+#     localhost/liboas-dev:latest bash -c "cd /workspace && ./scripts/quality.sh"
+
+FROM oraclelinux:10
+
+LABEL maintainer="liboas development team"
+LABEL description="Development environment for liboas — C23 OpenAPI 3.2 library"
+
+# Build arguments for tool versions
+ARG CMAKE_VERSION=4.2.3
+ARG CLANG_VERSION=22.1.0
+ARG DOXYGEN_VERSION=1.16.1
+ARG UNITY_VERSION=2.6.1
+ARG YYJSON_VERSION=0.12.0
+ARG PCRE2_VERSION=10.45
+ARG LIBFYAML_VERSION=0.9
+ARG MOLD_VERSION=2.40.4
+
+# Enable CodeReady Builder repo (for -devel packages not in baseos/appstream)
+RUN dnf install -y oraclelinux-developer-release-el10 && \
+    dnf config-manager --set-enabled ol10_codeready_builder && \
+    dnf clean all
+
+# ═══════════════════════════════════════════════════════
+# Base Development Tools
+# ═══════════════════════════════════════════════════════
+
+RUN dnf install -y \
+    gcc \
+    gcc-c++ \
+    make \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    git \
+    vim \
+    gdb \
+    valgrind \
+    strace \
+    wget \
+    curl \
+    tar \
+    xz \
+    bzip2 \
+    patch \
+    flex \
+    bison \
+    && dnf clean all
+
+# ═══════════════════════════════════════════════════════
+# Compilers
+# ═══════════════════════════════════════════════════════
+
+# Install Clang 22 from pre-built release binary (selective — only needed tools)
+RUN cd /tmp && \
+    curl -fsSL -o llvm.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-${CLANG_VERSION}/LLVM-${CLANG_VERSION}-Linux-X64.tar.xz && \
+    tar xJf llvm.tar.xz && \
+    LLVM_DIR=LLVM-${CLANG_VERSION}-Linux-X64 && \
+    CLANG_MAJOR=$(echo ${CLANG_VERSION} | cut -d. -f1) && \
+    for tool in clang clang++ clang-cl clang-cpp clang-${CLANG_MAJOR} \
+                clang-format clang-tidy clang-apply-replacements \
+                clang-rename clang-check \
+                lld ld.lld ld64.lld wasm-ld \
+                llvm-ar llvm-nm llvm-objdump llvm-ranlib llvm-strip \
+                llvm-symbolizer llvm-profdata llvm-cov llvm-objcopy \
+                llvm-readelf llvm-size llvm-strings llvm-addr2line \
+                scan-build scan-view; do \
+        [ -e "$LLVM_DIR/bin/$tool" ] && cp -a "$LLVM_DIR/bin/$tool" /usr/local/bin/; \
+    done && \
+    cp -a $LLVM_DIR/lib/clang /usr/local/lib/ && \
+    rm -rf /tmp/LLVM-* /tmp/llvm.tar.xz && \
+    ldconfig && \
+    clang --version
+
+# Install GCC 15 from gcc-toolset-15 (OL10 appstream)
+RUN dnf install -y \
+        gcc-toolset-15-gcc \
+        gcc-toolset-15-gcc-c++ \
+        gcc-toolset-15-libatomic-devel \
+        gcc-toolset-15-libasan-devel \
+        gcc-toolset-15-libubsan-devel \
+        gcc-toolset-15-libtsan-devel \
+        gcc-toolset-15-binutils \
+    && dnf clean all && \
+    ln -sf /opt/rh/gcc-toolset-15/root/usr/bin/gcc /usr/local/bin/gcc-15 && \
+    ln -sf /opt/rh/gcc-toolset-15/root/usr/bin/g++ /usr/local/bin/g++-15 && \
+    gcc-15 --version
+
+# ═══════════════════════════════════════════════════════
+# Build Tools and Quality Infrastructure
+# ═══════════════════════════════════════════════════════
+
+# Python, graphviz (for Doxygen), ninja
+RUN dnf install -y \
+    graphviz \
+    python3 \
+    python3-pip \
+    && dnf clean all
+
+RUN pip3 install ninja flawfinder
+
+RUN dnf install -y \
+    ccache \
+    lcov \
+    && dnf clean all
+
+# Build CMake from source
+RUN cd /tmp && \
+    wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz && \
+    tar xzf cmake-${CMAKE_VERSION}.tar.gz && \
+    cd cmake-${CMAKE_VERSION} && \
+    ./bootstrap --prefix=/usr/local --parallel=$(nproc) && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf cmake-*
+
+# Build cppcheck from source
+RUN cd /tmp && \
+    git clone --depth 1 --branch 2.20.0 https://github.com/danmar/cppcheck.git && \
+    cd cppcheck && \
+    mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf cppcheck
+
+# Build Doxygen from source
+RUN cd /tmp && \
+    wget https://github.com/doxygen/doxygen/archive/refs/tags/Release_${DOXYGEN_VERSION//./_}.tar.gz && \
+    tar xzf Release_${DOXYGEN_VERSION//./_}.tar.gz && \
+    cd doxygen-Release_${DOXYGEN_VERSION//./_} && \
+    mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf doxygen-* Release_*
+
+# Install Unity testing framework
+RUN cd /tmp && \
+    wget https://github.com/ThrowTheSwitch/Unity/archive/refs/tags/v${UNITY_VERSION}.tar.gz && \
+    tar xzf v${UNITY_VERSION}.tar.gz && \
+    cd Unity-${UNITY_VERSION} && \
+    mkdir -p /usr/local/include/unity && \
+    mkdir -p /usr/local/src/unity && \
+    cp src/unity.h src/unity_internals.h /usr/local/include/unity/ && \
+    cp src/unity.c /usr/local/src/unity/ && \
+    cp -r extras /usr/local/src/unity/ && \
+    cd /tmp && rm -rf Unity-* v${UNITY_VERSION}.tar.gz
+
+# Install mold linker for fast debug builds
+RUN cd /tmp && \
+    git clone --depth 1 --branch v${MOLD_VERSION} https://github.com/rui314/mold.git && \
+    cd mold && \
+    mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf mold
+
+# ═══════════════════════════════════════════════════════
+# liboas Dependencies
+# ═══════════════════════════════════════════════════════
+
+# Build yyjson from source (JSON parsing)
+RUN cd /tmp && \
+    wget https://github.com/ibireme/yyjson/archive/refs/tags/${YYJSON_VERSION}.tar.gz && \
+    tar xzf ${YYJSON_VERSION}.tar.gz && \
+    cd yyjson-${YYJSON_VERSION} && \
+    mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd /tmp && rm -rf yyjson-*
+
+# Build PCRE2 from source (regex pattern validation)
+RUN cd /tmp && \
+    wget https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz && \
+    tar xzf pcre2-${PCRE2_VERSION}.tar.gz && \
+    cd pcre2-${PCRE2_VERSION} && \
+    mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DPCRE2_BUILD_PCRE2_8=ON \
+        -DPCRE2_BUILD_PCRE2_16=OFF \
+        -DPCRE2_BUILD_PCRE2_32=OFF \
+        -DPCRE2_SUPPORT_JIT=ON \
+        -DPCRE2_SUPPORT_UNICODE=ON && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd /tmp && rm -rf pcre2-*
+
+# Build libfyaml from source (YAML 1.2 parsing, optional)
+RUN cd /tmp && \
+    wget https://github.com/pantoniou/libfyaml/releases/download/v${LIBFYAML_VERSION}/libfyaml-${LIBFYAML_VERSION}.tar.gz && \
+    tar xzf libfyaml-${LIBFYAML_VERSION}.tar.gz && \
+    cd libfyaml-${LIBFYAML_VERSION} && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd /tmp && rm -rf libfyaml-*
+
+# ═══════════════════════════════════════════════════════
+# Static Analysis Tools
+# ═══════════════════════════════════════════════════════
+
+# Install CodeChecker (clang-tidy + clang-sa wrapper with result management)
+RUN pip3 install codechecker && \
+    ln -sf /usr/local/bin/CodeChecker /usr/local/bin/codechecker 2>/dev/null || true && \
+    CodeChecker version
+
+# Install PVS-Studio (free for open-source, b4all license)
+RUN cd /tmp && \
+    curl -fsSL -o pvs-studio.tgz \
+        https://files.pvs-studio.ru/pvs-studio-7.41.103683.741-x86_64.tgz && \
+    tar xzf pvs-studio.tgz && \
+    cd pvs-studio-* && \
+    cp -a bin/* /usr/local/bin/ && \
+    cp -a etc/* /usr/local/etc/ 2>/dev/null || true && \
+    mkdir -p /usr/local/share/pvs-studio && \
+    cp -a share/* /usr/local/share/ 2>/dev/null || true && \
+    cd /tmp && rm -rf pvs-studio* && \
+    pvs-studio --version
+
+# Activate PVS-Studio b4all license (free for open-source)
+RUN pvs-studio-analyzer credentials "PVS-Studio Free" "SRUG-709S-2Q5H-EE03"
+
+# ═══════════════════════════════════════════════════════
+# Build Acceleration & Final Setup
+# ═══════════════════════════════════════════════════════
+
+# Configure ccache defaults
+RUN mkdir -p /root/.config/ccache && \
+    printf "max_size = 2G\ncompression = true\ncompression_level = 6\n" \
+        > /root/.config/ccache/ccache.conf
+
+# Update ldconfig cache
+RUN ldconfig
+
+WORKDIR /workspace
+CMD ["/bin/bash"]
