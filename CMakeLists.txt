@@ -288,4 +288,7 @@ if(BUILD_TESTING)
     if(OAS_YAML)
         oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
     endif()
+
+    # Integration tests
+    oas_add_test(test_petstore tests/integration/test_petstore.c oas_adapter oas_model)
 endif()
