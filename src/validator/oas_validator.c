@@ -117,7 +117,9 @@ static bool is_nesting_op(oas_opcode_t op)
 {
     return op == OAS_OP_ENTER_ITEMS || op == OAS_OP_ENTER_PROPERTY ||
            op == OAS_OP_ENTER_PREFIX_ITEM || op == OAS_OP_ENTER_ADDITIONAL || op == OAS_OP_NEGATE ||
-           op == OAS_OP_COND_IF || op == OAS_OP_COND_THEN || op == OAS_OP_COND_ELSE;
+           op == OAS_OP_COND_IF || op == OAS_OP_COND_THEN || op == OAS_OP_COND_ELSE ||
+           op == OAS_OP_CHECK_PROP_NAMES || op == OAS_OP_CHECK_PATTERN_PROPS ||
+           op == OAS_OP_CHECK_DEP_SCHEMA || op == OAS_OP_CHECK_CONTAINS;
 }
 
 static void skip_to_end(vm_state_t *vm)
@@ -491,6 +493,193 @@ static void execute(vm_state_t *vm)
             if (!yyjson_equals(vm->value, expected)) {
                 add_error(vm, "value does not match const");
             }
+            break;
+        }
+
+        case OAS_OP_CHECK_MIN_PROPS: {
+            if (!yyjson_is_obj(vm->value)) {
+                break;
+            }
+            size_t n = yyjson_obj_size(vm->value);
+            if ((int64_t)n < instr->operand.i64) {
+                add_error(vm, "too few properties");
+            }
+            break;
+        }
+
+        case OAS_OP_CHECK_MAX_PROPS: {
+            if (!yyjson_is_obj(vm->value)) {
+                break;
+            }
+            size_t n = yyjson_obj_size(vm->value);
+            if ((int64_t)n > instr->operand.i64) {
+                add_error(vm, "too many properties");
+            }
+            break;
+        }
+
+        case OAS_OP_CHECK_PROP_NAMES: {
+            if (!yyjson_is_obj(vm->value)) {
+                skip_to_end(vm);
+                break;
+            }
+            const oas_instruction_t *sub_start = vm->ip;
+            yyjson_val *key;
+            yyjson_val *val;
+            size_t idx;
+            size_t max;
+            yyjson_obj_foreach(vm->value, idx, max, key, val)
+            {
+                (void)val;
+                /* Validate property name as a JSON string value */
+                yyjson_mut_doc *tmp_doc = yyjson_mut_doc_new(nullptr);
+                if (tmp_doc) {
+                    yyjson_mut_val *name_val = yyjson_mut_str(tmp_doc, yyjson_get_str(key));
+                    if (name_val) {
+                        /* Convert mutable val to immutable for validation */
+                        size_t json_len = 0;
+                        char *json_str = yyjson_mut_val_write(name_val, 0, &json_len);
+                        if (json_str) {
+                            yyjson_doc *name_doc = yyjson_read(json_str, json_len, 0);
+                            if (name_doc) {
+                                vm_state_t sub = *vm;
+                                sub.value = yyjson_doc_get_root(name_doc);
+                                sub.ip = sub_start;
+                                execute(&sub);
+                                if (!sub.valid) {
+                                    add_error(vm, "propertyNames: name '%s' failed validation",
+                                              yyjson_get_str(key));
+                                }
+                                yyjson_doc_free(name_doc);
+                            }
+                            free(json_str);
+                        }
+                    }
+                    yyjson_mut_doc_free(tmp_doc);
+                }
+            }
+            skip_to_end(vm);
+            break;
+        }
+
+        case OAS_OP_CHECK_PATTERN_PROPS: {
+            if (!yyjson_is_obj(vm->value) || !vm->regex) {
+                skip_to_end(vm);
+                break;
+            }
+            oas_compiled_pattern_t *pat = instr->operand.ptr;
+            const oas_instruction_t *sub_start = vm->ip;
+            yyjson_val *key;
+            yyjson_val *val;
+            size_t idx;
+            size_t max;
+            yyjson_obj_foreach(vm->value, idx, max, key, val)
+            {
+                const char *name = yyjson_get_str(key);
+                size_t name_len = yyjson_get_len(key);
+                if (vm->regex->match(vm->regex, pat, name, name_len)) {
+                    vm_state_t sub = *vm;
+                    sub.value = val;
+                    sub.ip = sub_start;
+                    execute(&sub);
+                    if (!sub.valid) {
+                        vm->valid = false;
+                    }
+                }
+            }
+            skip_to_end(vm);
+            break;
+        }
+
+        case OAS_OP_CHECK_DEP_REQUIRED: {
+            if (!yyjson_is_obj(vm->value)) {
+                /* Skip the NOP count + NOP name instructions */
+                if (vm->ip < vm->end) {
+                    int64_t cnt = vm->ip->operand.i64;
+                    vm->ip++;      /* skip count NOP */
+                    vm->ip += cnt; /* skip name NOPs */
+                }
+                break;
+            }
+            const char *trigger = instr->operand.str;
+            /* Read count from next NOP instruction */
+            int64_t cnt = 0;
+            if (vm->ip < vm->end) {
+                cnt = vm->ip->operand.i64;
+                vm->ip++;
+            }
+            if (yyjson_obj_get(vm->value, trigger)) {
+                /* Trigger property is present — check all required */
+                for (int64_t i = 0; i < cnt && vm->ip < vm->end; i++) {
+                    const char *req_name = vm->ip->operand.str;
+                    vm->ip++;
+                    if (!yyjson_obj_get(vm->value, req_name)) {
+                        add_error(vm, "dependentRequired: '%s' requires '%s'", trigger, req_name);
+                    }
+                }
+            } else {
+                /* Trigger absent — skip required name NOPs */
+                vm->ip += cnt;
+            }
+            break;
+        }
+
+        case OAS_OP_CHECK_DEP_SCHEMA: {
+            if (!yyjson_is_obj(vm->value)) {
+                skip_to_end(vm);
+                break;
+            }
+            const char *trigger = instr->operand.str;
+            if (yyjson_obj_get(vm->value, trigger)) {
+                /* Trigger present — validate object against dependent schema */
+                vm_state_t sub = *vm;
+                execute(&sub);
+                if (!sub.valid) {
+                    vm->valid = false;
+                }
+                vm->ip = sub.ip;
+            } else {
+                skip_to_end(vm);
+            }
+            break;
+        }
+
+        case OAS_OP_CHECK_CONTAINS: {
+            if (!yyjson_is_arr(vm->value)) {
+                skip_to_end(vm);
+                break;
+            }
+            int64_t min_c = instr->operand.i64;
+            int64_t max_c = -1;
+            /* Read max_contains from next NOP */
+            if (vm->ip < vm->end) {
+                max_c = vm->ip->operand.i64;
+                vm->ip++;
+            }
+            const oas_instruction_t *sub_start = vm->ip;
+            int64_t match_count = 0;
+            yyjson_val *item;
+            yyjson_arr_iter iter;
+            yyjson_arr_iter_init(vm->value, &iter);
+            while ((item = yyjson_arr_iter_next(&iter)) != nullptr) {
+                vm_state_t sub = *vm;
+                sub.value = item;
+                sub.ip = sub_start;
+                sub.errors = nullptr;
+                execute(&sub);
+                if (sub.valid) {
+                    match_count++;
+                }
+            }
+            if (match_count < min_c) {
+                add_error(vm, "contains: too few matches (%lld < %lld)", (long long)match_count,
+                          (long long)min_c);
+            }
+            if (max_c >= 0 && match_count > max_c) {
+                add_error(vm, "contains: too many matches (%lld > %lld)", (long long)match_count,
+                          (long long)max_c);
+            }
+            skip_to_end(vm);
             break;
         }
 

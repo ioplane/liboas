@@ -25,6 +25,10 @@ static oas_info_t *parse_info(oas_arena_t *arena, yyjson_val *obj,
     if (v && yyjson_is_str(v)) {
         info->title = yyjson_get_str(v);
     }
+    v = yyjson_obj_get(obj, "summary");
+    if (v && yyjson_is_str(v)) {
+        info->summary = yyjson_get_str(v);
+    }
     v = yyjson_obj_get(obj, "description");
     if (v && yyjson_is_str(v)) {
         info->description = yyjson_get_str(v);

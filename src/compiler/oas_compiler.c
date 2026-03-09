@@ -326,6 +326,131 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
             return rc;
         }
     }
+    if (schema->min_properties >= 0) {
+        rc = emit_i64(prog, OAS_OP_CHECK_MIN_PROPS, schema->min_properties);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+    if (schema->max_properties >= 0) {
+        rc = emit_i64(prog, OAS_OP_CHECK_MAX_PROPS, schema->max_properties);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+    if (schema->property_names) {
+        rc = emit_simple(prog, OAS_OP_CHECK_PROP_NAMES);
+        if (rc < 0) {
+            return rc;
+        }
+        rc = compile_schema(cs, schema->property_names, config, errors);
+        if (rc < 0) {
+            return rc;
+        }
+        rc = emit_simple(prog, OAS_OP_END);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+    for (size_t i = 0; i < schema->pattern_properties_count; i++) {
+        if (!schema->pattern_properties[i].pattern || !schema->pattern_properties[i].schema) {
+            continue;
+        }
+        if (cs->regex) {
+            oas_compiled_pattern_t *compiled_pat = nullptr;
+            rc =
+                cs->regex->compile(cs->regex, schema->pattern_properties[i].pattern, &compiled_pat);
+            if (rc < 0) {
+                if (errors) {
+                    oas_error_list_add(errors, OAS_ERR_CONSTRAINT, "",
+                                       "Failed to compile patternProperties pattern: %s",
+                                       schema->pattern_properties[i].pattern);
+                }
+                return rc;
+            }
+            rc = track_pattern(cs, compiled_pat);
+            if (rc < 0) {
+                cs->regex->free_pattern(cs->regex, compiled_pat);
+                return rc;
+            }
+            rc = emit_ptr(prog, OAS_OP_CHECK_PATTERN_PROPS, compiled_pat);
+            if (rc < 0) {
+                return rc;
+            }
+            rc = compile_schema(cs, schema->pattern_properties[i].schema, config, errors);
+            if (rc < 0) {
+                return rc;
+            }
+            rc = emit_simple(prog, OAS_OP_END);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+    }
+    for (size_t i = 0; i < schema->dependent_required_count; i++) {
+        /* Encode: operand.str = trigger property, then inline the required names */
+        rc = emit_str(prog, OAS_OP_CHECK_DEP_REQUIRED, schema->dependent_required[i].property);
+        if (rc < 0) {
+            return rc;
+        }
+        /* Store count + required names as subsequent instructions */
+        rc = emit_i64(prog, OAS_OP_NOP, (int64_t)schema->dependent_required[i].required_count);
+        if (rc < 0) {
+            return rc;
+        }
+        for (size_t j = 0; j < schema->dependent_required[i].required_count; j++) {
+            rc = emit_str(prog, OAS_OP_NOP, schema->dependent_required[i].required[j]);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+    }
+    for (size_t i = 0; i < schema->dependent_schemas_count; i++) {
+        if (!schema->dependent_schemas[i].schema) {
+            continue;
+        }
+        rc = emit_str(prog, OAS_OP_CHECK_DEP_SCHEMA, schema->dependent_schemas[i].property);
+        if (rc < 0) {
+            return rc;
+        }
+        rc = compile_schema(cs, schema->dependent_schemas[i].schema, config, errors);
+        if (rc < 0) {
+            return rc;
+        }
+        rc = emit_simple(prog, OAS_OP_END);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+
+    /* Array: contains */
+    if (schema->contains) {
+        /* Encode min/max contains as i64 operands in the CHECK_CONTAINS instruction */
+        oas_instruction_t cinstr = {.op = OAS_OP_CHECK_CONTAINS};
+        /* Pack min_contains into branch.index and max_contains into offset
+         * Actually, use separate approach: emit CHECK_CONTAINS with ptr to sub-program,
+         * followed by compiled contains schema + END, and store min/max inline */
+        int64_t min_c = schema->min_contains >= 0 ? schema->min_contains : 1;
+        int64_t max_c = schema->max_contains;
+        cinstr.operand.i64 = min_c;
+        rc = oas_program_emit(prog, &cinstr);
+        if (rc < 0) {
+            return rc;
+        }
+        /* Emit max_contains as NOP */
+        rc = emit_i64(prog, OAS_OP_NOP, max_c);
+        if (rc < 0) {
+            return rc;
+        }
+        rc = compile_schema(cs, schema->contains, config, errors);
+        if (rc < 0) {
+            return rc;
+        }
+        rc = emit_simple(prog, OAS_OP_END);
+        if (rc < 0) {
+            return rc;
+        }
+    }
 
     /* Composition */
     if (schema->all_of && schema->all_of_count > 0) {
