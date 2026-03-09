@@ -359,10 +359,13 @@ bool oas_format_ipv6(const char *value, size_t len)
                 digits = 0;
             }
         } else if (value[i] == '.') {
-            /* IPv4-mapped suffix */
+            /* IPv4-mapped suffix — must have at least one colon before the IPv4 part */
             size_t v4_start = i;
             while (v4_start > 0 && value[v4_start - 1] != ':') {
                 v4_start--;
+            }
+            if (v4_start == 0) {
+                return false; /* bare IPv4 is not valid IPv6 */
             }
             return oas_format_ipv4(value + v4_start, len - v4_start);
         } else {
