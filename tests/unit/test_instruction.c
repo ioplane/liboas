@@ -109,8 +109,7 @@ void test_instruction_opcode_name_all(void)
     TEST_ASSERT_EQUAL_STRING("NOP", oas_opcode_name(OAS_OP_NOP));
     TEST_ASSERT_EQUAL_STRING("CHECK_TYPE", oas_opcode_name(OAS_OP_CHECK_TYPE));
     TEST_ASSERT_EQUAL_STRING("END", oas_opcode_name(OAS_OP_END));
-    TEST_ASSERT_EQUAL_STRING("BRANCH_ONEOF",
-                             oas_opcode_name(OAS_OP_BRANCH_ONEOF));
+    TEST_ASSERT_EQUAL_STRING("BRANCH_ONEOF", oas_opcode_name(OAS_OP_BRANCH_ONEOF));
     TEST_ASSERT_EQUAL_STRING("UNKNOWN", oas_opcode_name(OAS_OP_COUNT_));
 }
 
