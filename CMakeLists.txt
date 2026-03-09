@@ -140,6 +140,7 @@ target_link_libraries(oas_parser PUBLIC oas_core oas_model)
 # Compiler library: format validators, instruction set, schema compiler
 add_library(oas_compiler STATIC
     src/compiler/oas_format.c
+    src/compiler/oas_instruction.c
 )
 target_include_directories(oas_compiler PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_compiler PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -230,4 +231,5 @@ if(BUILD_TESTING)
     oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
     oas_add_test(test_regex tests/unit/test_regex.c oas_core)
     oas_add_test(test_format tests/unit/test_format.c oas_compiler)
+    oas_add_test(test_instruction tests/unit/test_instruction.c oas_compiler)
 endif()
