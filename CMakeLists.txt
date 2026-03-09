@@ -109,6 +109,9 @@ add_library(oas_core STATIC
     src/core/oas_jsonptr.c
     src/core/oas_path_match.c
     src/core/oas_regex_libregexp.c
+    src/core/oas_query.c
+    src/core/oas_problem.c
+    src/core/oas_negotiate.c
 )
 target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -287,6 +290,7 @@ if(BUILD_TESTING)
     oas_add_test(test_adapter tests/unit/test_adapter.c oas_adapter oas_model)
     oas_add_test(test_doc_compiler tests/unit/test_doc_compiler.c oas_validator oas_parser)
     oas_add_test(test_schema_keywords tests/unit/test_schema_keywords.c oas_validator oas_parser)
+    oas_add_test(test_framework_core tests/unit/test_framework_core.c oas_adapter oas_model)
     if(OAS_YAML)
         oas_add_test(test_yaml tests/unit/test_yaml.c oas_yaml)
     endif()

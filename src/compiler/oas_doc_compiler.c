@@ -29,6 +29,7 @@ typedef struct {
 typedef struct {
     const char *path;
     const char *method;
+    const char *operation_id;
     compiled_media_type_t *request_body;
     size_t request_body_count;
     bool request_body_required;
@@ -207,6 +208,7 @@ static int compile_operation(oas_compiled_doc_t *cdoc, const char *path, const c
 {
     out->path = path;
     out->method = method;
+    out->operation_id = op->operation_id;
     out->request_body_required = false;
     int compile_err = 0;
 
