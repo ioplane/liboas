@@ -104,7 +104,237 @@ static oas_server_t *parse_server(oas_arena_t *arena, yyjson_val *obj)
     if (v && yyjson_is_str(v)) {
         srv->description = yyjson_get_str(v);
     }
+
+    /* variables */
+    v = yyjson_obj_get(obj, "variables");
+    if (v && yyjson_is_obj(v)) {
+        size_t n = yyjson_obj_size(v);
+        if (n > 0) {
+            srv->variables =
+                oas_arena_alloc(arena, n * sizeof(*srv->variables), _Alignof(oas_server_var_t *));
+            if (srv->variables) {
+                srv->variables_count = n;
+                yyjson_val *vk;
+                yyjson_val *vv;
+                size_t vi;
+                size_t vm;
+                yyjson_obj_foreach(v, vi, vm, vk, vv)
+                {
+                    oas_server_var_t *sv =
+                        oas_arena_alloc(arena, sizeof(*sv), _Alignof(oas_server_var_t));
+                    if (!sv) {
+                        continue;
+                    }
+                    memset(sv, 0, sizeof(*sv));
+                    sv->name = yyjson_get_str(vk);
+                    if (yyjson_is_obj(vv)) {
+                        yyjson_val *dv;
+                        dv = yyjson_obj_get(vv, "default");
+                        if (dv && yyjson_is_str(dv)) {
+                            sv->default_value = yyjson_get_str(dv);
+                        }
+                        dv = yyjson_obj_get(vv, "description");
+                        if (dv && yyjson_is_str(dv)) {
+                            sv->description = yyjson_get_str(dv);
+                        }
+                        dv = yyjson_obj_get(vv, "enum");
+                        if (dv && yyjson_is_arr(dv)) {
+                            size_t ec = yyjson_arr_size(dv);
+                            if (ec > 0) {
+                                sv->enum_values = oas_arena_alloc(arena, ec * sizeof(const char *),
+                                                                  _Alignof(const char *));
+                                if (sv->enum_values) {
+                                    sv->enum_count = ec;
+                                    yyjson_val *ev;
+                                    size_t ei;
+                                    size_t em;
+                                    yyjson_arr_foreach(dv, ei, em, ev)
+                                    {
+                                        sv->enum_values[ei] = yyjson_is_str(ev) ? yyjson_get_str(ev)
+                                                                                : nullptr;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    srv->variables[vi] = sv;
+                }
+            }
+        }
+    }
+
     return srv;
+}
+
+/* ── Security requirement parsing ────────────────────────────────────── */
+
+static void parse_security_array(oas_arena_t *arena, yyjson_val *arr, oas_security_req_t ***out,
+                                 size_t *out_count)
+{
+    *out = nullptr;
+    *out_count = 0;
+    if (!arr || !yyjson_is_arr(arr)) {
+        return;
+    }
+    size_t count = yyjson_arr_size(arr);
+    if (count == 0) {
+        return;
+    }
+    *out = oas_arena_alloc(arena, count * sizeof(oas_security_req_t *),
+                           _Alignof(oas_security_req_t *));
+    if (!*out) {
+        return;
+    }
+    *out_count = count;
+    yyjson_val *item;
+    size_t idx;
+    size_t max;
+    yyjson_arr_foreach(arr, idx, max, item)
+    {
+        if (!yyjson_is_obj(item) || yyjson_obj_size(item) == 0) {
+            /* Empty object = anonymous access */
+            (*out)[idx] = nullptr;
+            continue;
+        }
+        /* Take the first key-value pair as the scheme */
+        yyjson_obj_iter iter = yyjson_obj_iter_with(item);
+        yyjson_val *key = yyjson_obj_iter_next(&iter);
+        yyjson_val *val = yyjson_obj_iter_get_val(key);
+        oas_security_req_t *req =
+            oas_arena_alloc(arena, sizeof(*req), _Alignof(oas_security_req_t));
+        if (!req) {
+            (*out)[idx] = nullptr;
+            continue;
+        }
+        memset(req, 0, sizeof(*req));
+        req->name = yyjson_get_str(key);
+        if (val && yyjson_is_arr(val)) {
+            size_t sc = yyjson_arr_size(val);
+            if (sc > 0) {
+                req->scopes =
+                    oas_arena_alloc(arena, sc * sizeof(const char *), _Alignof(const char *));
+                if (req->scopes) {
+                    req->scopes_count = sc;
+                    yyjson_val *scope;
+                    size_t si;
+                    size_t sm;
+                    yyjson_arr_foreach(val, si, sm, scope)
+                    {
+                        req->scopes[si] = yyjson_is_str(scope) ? yyjson_get_str(scope) : nullptr;
+                    }
+                }
+            }
+        }
+        (*out)[idx] = req;
+    }
+}
+
+/* ── Security scheme parsing ────────────────────────────────────────── */
+
+static oas_oauth_flow_t *parse_oauth_flow(oas_arena_t *arena, yyjson_val *obj)
+{
+    if (!obj || !yyjson_is_obj(obj)) {
+        return nullptr;
+    }
+    oas_oauth_flow_t *flow = oas_arena_alloc(arena, sizeof(*flow), _Alignof(oas_oauth_flow_t));
+    if (!flow) {
+        return nullptr;
+    }
+    memset(flow, 0, sizeof(*flow));
+    yyjson_val *v;
+    v = yyjson_obj_get(obj, "authorizationUrl");
+    if (v && yyjson_is_str(v)) {
+        flow->authorization_url = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "tokenUrl");
+    if (v && yyjson_is_str(v)) {
+        flow->token_url = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "refreshUrl");
+    if (v && yyjson_is_str(v)) {
+        flow->refresh_url = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "scopes");
+    if (v && yyjson_is_obj(v)) {
+        size_t n = yyjson_obj_size(v);
+        if (n > 0) {
+            flow->scope_names =
+                oas_arena_alloc(arena, n * sizeof(const char *), _Alignof(const char *));
+            flow->scope_descriptions =
+                oas_arena_alloc(arena, n * sizeof(const char *), _Alignof(const char *));
+            if (flow->scope_names && flow->scope_descriptions) {
+                flow->scopes_count = n;
+                yyjson_val *sk;
+                yyjson_val *sv;
+                size_t si;
+                size_t sm;
+                yyjson_obj_foreach(v, si, sm, sk, sv)
+                {
+                    flow->scope_names[si] = yyjson_get_str(sk);
+                    flow->scope_descriptions[si] = yyjson_is_str(sv) ? yyjson_get_str(sv) : nullptr;
+                }
+            }
+        }
+    }
+    return flow;
+}
+
+static oas_security_scheme_t *parse_security_scheme(oas_arena_t *arena, yyjson_val *obj)
+{
+    if (!obj || !yyjson_is_obj(obj)) {
+        return nullptr;
+    }
+    oas_security_scheme_t *ss =
+        oas_arena_alloc(arena, sizeof(*ss), _Alignof(oas_security_scheme_t));
+    if (!ss) {
+        return nullptr;
+    }
+    memset(ss, 0, sizeof(*ss));
+    yyjson_val *v;
+    v = yyjson_obj_get(obj, "type");
+    if (v && yyjson_is_str(v)) {
+        ss->type = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "description");
+    if (v && yyjson_is_str(v)) {
+        ss->description = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "name");
+    if (v && yyjson_is_str(v)) {
+        ss->name = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "in");
+    if (v && yyjson_is_str(v)) {
+        ss->in = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "scheme");
+    if (v && yyjson_is_str(v)) {
+        ss->scheme = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "bearerFormat");
+    if (v && yyjson_is_str(v)) {
+        ss->bearer_format = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "openIdConnectUrl");
+    if (v && yyjson_is_str(v)) {
+        ss->open_id_connect_url = yyjson_get_str(v);
+    }
+    v = yyjson_obj_get(obj, "flows");
+    if (v && yyjson_is_obj(v)) {
+        oas_oauth_flows_t *flows =
+            oas_arena_alloc(arena, sizeof(*flows), _Alignof(oas_oauth_flows_t));
+        if (flows) {
+            memset(flows, 0, sizeof(*flows));
+            flows->implicit = parse_oauth_flow(arena, yyjson_obj_get(v, "implicit"));
+            flows->password = parse_oauth_flow(arena, yyjson_obj_get(v, "password"));
+            flows->client_credentials =
+                parse_oauth_flow(arena, yyjson_obj_get(v, "clientCredentials"));
+            flows->authorization_code =
+                parse_oauth_flow(arena, yyjson_obj_get(v, "authorizationCode"));
+            ss->flows = flows;
+        }
+    }
+    return ss;
 }
 
 static oas_parameter_t *parse_parameter(oas_arena_t *arena, yyjson_val *obj,
@@ -329,6 +559,12 @@ static oas_operation_t *parse_operation(oas_arena_t *arena, yyjson_val *obj,
         parse_responses(arena, v, op, errors);
     }
 
+    /* security (operation level) */
+    v = yyjson_obj_get(obj, "security");
+    if (v) {
+        parse_security_array(arena, v, &op->security, &op->security_count);
+    }
+
     return op;
 }
 
@@ -407,6 +643,148 @@ static void parse_components(oas_arena_t *arena, yyjson_val *obj, oas_doc_t *doc
                 {
                     comp->schemas[idx].name = yyjson_get_str(key);
                     comp->schemas[idx].schema = oas_schema_parse(arena, val, errors);
+                }
+            }
+        }
+    }
+
+    /* securitySchemes */
+    yyjson_val *sec_schemes = yyjson_obj_get(obj, "securitySchemes");
+    if (sec_schemes && yyjson_is_obj(sec_schemes)) {
+        size_t n = yyjson_obj_size(sec_schemes);
+        if (n > 0) {
+            comp->security_schemes = oas_arena_alloc(arena, sizeof(oas_security_scheme_entry_t) * n,
+                                                     _Alignof(oas_security_scheme_entry_t));
+            if (comp->security_schemes) {
+                comp->security_schemes_count = n;
+                yyjson_val *key;
+                yyjson_val *val;
+                size_t idx;
+                size_t max;
+                yyjson_obj_foreach(sec_schemes, idx, max, key, val)
+                {
+                    comp->security_schemes[idx].name = yyjson_get_str(key);
+                    comp->security_schemes[idx].scheme = parse_security_scheme(arena, val);
+                }
+            }
+        }
+    }
+
+    /* responses */
+    yyjson_val *responses = yyjson_obj_get(obj, "responses");
+    if (responses && yyjson_is_obj(responses)) {
+        size_t n = yyjson_obj_size(responses);
+        if (n > 0) {
+            comp->responses = oas_arena_alloc(arena, sizeof(oas_response_component_entry_t) * n,
+                                              _Alignof(oas_response_component_entry_t));
+            if (comp->responses) {
+                comp->responses_count = n;
+                yyjson_val *key;
+                yyjson_val *val;
+                size_t idx;
+                size_t max;
+                yyjson_obj_foreach(responses, idx, max, key, val)
+                {
+                    comp->responses[idx].name = yyjson_get_str(key);
+                    oas_response_t *resp =
+                        oas_arena_alloc(arena, sizeof(*resp), _Alignof(oas_response_t));
+                    if (resp) {
+                        memset(resp, 0, sizeof(*resp));
+                        yyjson_val *dv = yyjson_obj_get(val, "description");
+                        if (dv && yyjson_is_str(dv)) {
+                            resp->description = yyjson_get_str(dv);
+                        }
+                        yyjson_val *cv = yyjson_obj_get(val, "content");
+                        if (cv) {
+                            resp->content = parse_content(arena, cv, &resp->content_count, errors);
+                        }
+                    }
+                    comp->responses[idx].response = resp;
+                }
+            }
+        }
+    }
+
+    /* parameters */
+    yyjson_val *params = yyjson_obj_get(obj, "parameters");
+    if (params && yyjson_is_obj(params)) {
+        size_t n = yyjson_obj_size(params);
+        if (n > 0) {
+            comp->parameters = oas_arena_alloc(arena, sizeof(oas_parameter_component_entry_t) * n,
+                                               _Alignof(oas_parameter_component_entry_t));
+            if (comp->parameters) {
+                comp->parameters_count = n;
+                yyjson_val *key;
+                yyjson_val *val;
+                size_t idx;
+                size_t max;
+                yyjson_obj_foreach(params, idx, max, key, val)
+                {
+                    comp->parameters[idx].name = yyjson_get_str(key);
+                    comp->parameters[idx].parameter = parse_parameter(arena, val, errors);
+                }
+            }
+        }
+    }
+
+    /* requestBodies */
+    yyjson_val *req_bodies = yyjson_obj_get(obj, "requestBodies");
+    if (req_bodies && yyjson_is_obj(req_bodies)) {
+        size_t n = yyjson_obj_size(req_bodies);
+        if (n > 0) {
+            comp->request_bodies = oas_arena_alloc(arena,
+                                                   sizeof(oas_request_body_component_entry_t) * n,
+                                                   _Alignof(oas_request_body_component_entry_t));
+            if (comp->request_bodies) {
+                comp->request_bodies_count = n;
+                yyjson_val *key;
+                yyjson_val *val;
+                size_t idx;
+                size_t max;
+                yyjson_obj_foreach(req_bodies, idx, max, key, val)
+                {
+                    comp->request_bodies[idx].name = yyjson_get_str(key);
+                    oas_request_body_t *rb =
+                        oas_arena_alloc(arena, sizeof(*rb), _Alignof(oas_request_body_t));
+                    if (rb) {
+                        memset(rb, 0, sizeof(*rb));
+                        yyjson_val *dv = yyjson_obj_get(val, "description");
+                        if (dv && yyjson_is_str(dv)) {
+                            rb->description = yyjson_get_str(dv);
+                        }
+                        yyjson_val *rv = yyjson_obj_get(val, "required");
+                        if (rv && yyjson_is_bool(rv)) {
+                            rb->required = yyjson_get_bool(rv);
+                        }
+                        yyjson_val *cv = yyjson_obj_get(val, "content");
+                        if (cv) {
+                            rb->content = parse_content(arena, cv, &rb->content_count, errors);
+                        }
+                    }
+                    comp->request_bodies[idx].request_body = rb;
+                }
+            }
+        }
+    }
+
+    /* headers */
+    yyjson_val *headers = yyjson_obj_get(obj, "headers");
+    if (headers && yyjson_is_obj(headers)) {
+        size_t n = yyjson_obj_size(headers);
+        if (n > 0) {
+            comp->headers = oas_arena_alloc(arena, sizeof(oas_header_component_entry_t) * n,
+                                            _Alignof(oas_header_component_entry_t));
+            if (comp->headers) {
+                comp->headers_count = n;
+                yyjson_val *key;
+                yyjson_val *val;
+                size_t idx;
+                size_t max;
+                yyjson_obj_foreach(headers, idx, max, key, val)
+                {
+                    comp->headers[idx].name = yyjson_get_str(key);
+                    /* Header Object is a subset of Parameter — reuse parser */
+                    comp->headers[idx].header = parse_parameter(arena, val, errors);
                 }
             }
         }
@@ -537,6 +915,12 @@ oas_doc_t *oas_doc_parse(oas_arena_t *arena, const char *json, size_t len, oas_e
     yyjson_val *components = yyjson_obj_get(jdoc.root, "components");
     if (components) {
         parse_components(arena, components, doc, errors);
+    }
+
+    /* security (root level) */
+    yyjson_val *security = yyjson_obj_get(jdoc.root, "security");
+    if (security) {
+        parse_security_array(arena, security, &doc->security, &doc->security_count);
     }
 
     /* tags */
