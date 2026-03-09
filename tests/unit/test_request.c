@@ -454,6 +454,152 @@ void test_response_content_type(void)
     oas_compiled_doc_free(cdoc);
 }
 
+/* Helper: build a doc with multiple response entries for range matching tests */
+static oas_doc_t *build_multi_response_doc(const char **status_codes, size_t count)
+{
+    oas_doc_t *doc = oas_arena_alloc(arena, sizeof(*doc), _Alignof(oas_doc_t));
+    TEST_ASSERT_NOT_NULL(doc);
+    memset(doc, 0, sizeof(*doc));
+    doc->openapi = "3.2.0";
+
+    oas_info_t *info = oas_arena_alloc(arena, sizeof(*info), _Alignof(oas_info_t));
+    TEST_ASSERT_NOT_NULL(info);
+    memset(info, 0, sizeof(*info));
+    info->title = "Test API";
+    info->version = "1.0.0";
+    doc->info = info;
+
+    oas_operation_t *op = oas_arena_alloc(arena, sizeof(*op), _Alignof(oas_operation_t));
+    TEST_ASSERT_NOT_NULL(op);
+    memset(op, 0, sizeof(*op));
+    op->operation_id = "testOp";
+
+    oas_schema_t *resp_schema = oas_schema_create(arena);
+    resp_schema->type_mask = OAS_TYPE_OBJECT;
+
+    op->responses = oas_arena_alloc(arena, sizeof(oas_response_entry_t) * count,
+                                    _Alignof(oas_response_entry_t));
+    TEST_ASSERT_NOT_NULL(op->responses);
+    op->responses_count = count;
+
+    for (size_t i = 0; i < count; i++) {
+        op->responses[i].status_code = status_codes[i];
+        oas_response_t *resp = oas_arena_alloc(arena, sizeof(*resp), _Alignof(oas_response_t));
+        TEST_ASSERT_NOT_NULL(resp);
+        memset(resp, 0, sizeof(*resp));
+        resp->description = "OK";
+
+        oas_media_type_t *rmt = oas_arena_alloc(arena, sizeof(*rmt), _Alignof(oas_media_type_t));
+        TEST_ASSERT_NOT_NULL(rmt);
+        rmt->media_type_name = "application/json";
+        rmt->schema = resp_schema;
+
+        oas_media_type_entry_t *rmte =
+            oas_arena_alloc(arena, sizeof(*rmte), _Alignof(oas_media_type_entry_t));
+        TEST_ASSERT_NOT_NULL(rmte);
+        rmte->key = "application/json";
+        rmte->value = rmt;
+
+        resp->content = rmte;
+        resp->content_count = 1;
+        op->responses[i].response = resp;
+    }
+
+    oas_path_item_t *item = oas_arena_alloc(arena, sizeof(*item), _Alignof(oas_path_item_t));
+    TEST_ASSERT_NOT_NULL(item);
+    memset(item, 0, sizeof(*item));
+    item->path = "/pets";
+    item->get = op;
+
+    oas_path_entry_t *pe = oas_arena_alloc(arena, sizeof(*pe), _Alignof(oas_path_entry_t));
+    TEST_ASSERT_NOT_NULL(pe);
+    pe->path = "/pets";
+    pe->item = item;
+
+    doc->paths = pe;
+    doc->paths_count = 1;
+
+    return doc;
+}
+
+/* ── Test 15: status 201 matches "2XX" response ───────────────────────── */
+
+void test_response_2xx_match(void)
+{
+    const char *codes[] = {"2XX"};
+    oas_doc_t *doc = build_multi_response_doc(codes, 1);
+
+    oas_compiled_doc_t *cdoc = oas_doc_compile(doc, nullptr, nullptr);
+    TEST_ASSERT_NOT_NULL(cdoc);
+
+    const char *body = "{\"id\": 1}";
+    oas_http_response_t resp = {
+        .status_code = 201,
+        .content_type = "application/json",
+        .body = body,
+        .body_len = strlen(body),
+    };
+
+    oas_validation_result_t result = {0};
+    int rc = oas_validate_response(cdoc, "/pets", "GET", &resp, &result, arena);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    TEST_ASSERT_TRUE(result.valid);
+
+    oas_compiled_doc_free(cdoc);
+}
+
+/* ── Test 16: exact "200" preferred over "2XX" ────────────────────────── */
+
+void test_response_exact_over_range(void)
+{
+    const char *codes[] = {"200", "2XX"};
+    oas_doc_t *doc = build_multi_response_doc(codes, 2);
+
+    oas_compiled_doc_t *cdoc = oas_doc_compile(doc, nullptr, nullptr);
+    TEST_ASSERT_NOT_NULL(cdoc);
+
+    const char *body = "{\"id\": 1}";
+    oas_http_response_t resp = {
+        .status_code = 200,
+        .content_type = "application/json",
+        .body = body,
+        .body_len = strlen(body),
+    };
+
+    oas_validation_result_t result = {0};
+    int rc = oas_validate_response(cdoc, "/pets", "GET", &resp, &result, arena);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    TEST_ASSERT_TRUE(result.valid);
+
+    oas_compiled_doc_free(cdoc);
+}
+
+/* ── Test 17: "2XX" preferred over "default" ──────────────────────────── */
+
+void test_response_range_over_default(void)
+{
+    const char *codes[] = {"default", "2XX"};
+    oas_doc_t *doc = build_multi_response_doc(codes, 2);
+
+    oas_compiled_doc_t *cdoc = oas_doc_compile(doc, nullptr, nullptr);
+    TEST_ASSERT_NOT_NULL(cdoc);
+
+    const char *body = "{\"id\": 1}";
+    oas_http_response_t resp = {
+        .status_code = 201,
+        .content_type = "application/json",
+        .body = body,
+        .body_len = strlen(body),
+    };
+
+    oas_validation_result_t result = {0};
+    int rc = oas_validate_response(cdoc, "/pets", "GET", &resp, &result, arena);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    TEST_ASSERT_TRUE(result.valid);
+
+    oas_compiled_doc_free(cdoc);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -471,5 +617,8 @@ int main(void)
     RUN_TEST(test_response_body_pass);
     RUN_TEST(test_response_wrong_status);
     RUN_TEST(test_response_content_type);
+    RUN_TEST(test_response_2xx_match);
+    RUN_TEST(test_response_exact_over_range);
+    RUN_TEST(test_response_range_over_default);
     return UNITY_END();
 }

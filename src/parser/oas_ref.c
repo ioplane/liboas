@@ -242,16 +242,28 @@ static int resolve_schema_refs(oas_ref_ctx_t *ctx, oas_doc_t *doc, oas_schema_t 
 
     /* Conditional */
     if (schema->not_schema) {
-        (void)resolve_schema_refs(ctx, doc, schema->not_schema, errors);
+        int rc = resolve_schema_refs(ctx, doc, schema->not_schema, errors);
+        if (rc < 0) {
+            return rc;
+        }
     }
     if (schema->if_schema) {
-        (void)resolve_schema_refs(ctx, doc, schema->if_schema, errors);
+        int rc = resolve_schema_refs(ctx, doc, schema->if_schema, errors);
+        if (rc < 0) {
+            return rc;
+        }
     }
     if (schema->then_schema) {
-        (void)resolve_schema_refs(ctx, doc, schema->then_schema, errors);
+        int rc = resolve_schema_refs(ctx, doc, schema->then_schema, errors);
+        if (rc < 0) {
+            return rc;
+        }
     }
     if (schema->else_schema) {
-        (void)resolve_schema_refs(ctx, doc, schema->else_schema, errors);
+        int rc = resolve_schema_refs(ctx, doc, schema->else_schema, errors);
+        if (rc < 0) {
+            return rc;
+        }
     }
 
     return 0;
@@ -294,7 +306,10 @@ int oas_ref_resolve_all(oas_ref_ctx_t *ctx, oas_doc_t *doc, oas_error_list_t *er
             /* Parameters */
             for (size_t k = 0; k < op->parameters_count; k++) {
                 if (op->parameters[k] && op->parameters[k]->schema) {
-                    (void)resolve_schema_refs(ctx, doc, op->parameters[k]->schema, errors);
+                    int rc = resolve_schema_refs(ctx, doc, op->parameters[k]->schema, errors);
+                    if (rc < 0) {
+                        return rc;
+                    }
                 }
             }
 
@@ -303,7 +318,10 @@ int oas_ref_resolve_all(oas_ref_ctx_t *ctx, oas_doc_t *doc, oas_error_list_t *er
                 for (size_t k = 0; k < op->request_body->content_count; k++) {
                     oas_media_type_t *mt = op->request_body->content[k].value;
                     if (mt && mt->schema) {
-                        (void)resolve_schema_refs(ctx, doc, mt->schema, errors);
+                        int rc = resolve_schema_refs(ctx, doc, mt->schema, errors);
+                        if (rc < 0) {
+                            return rc;
+                        }
                     }
                 }
             }
@@ -317,7 +335,10 @@ int oas_ref_resolve_all(oas_ref_ctx_t *ctx, oas_doc_t *doc, oas_error_list_t *er
                 for (size_t m = 0; m < resp->content_count; m++) {
                     oas_media_type_t *mt = resp->content[m].value;
                     if (mt && mt->schema) {
-                        (void)resolve_schema_refs(ctx, doc, mt->schema, errors);
+                        int rc = resolve_schema_refs(ctx, doc, mt->schema, errors);
+                        if (rc < 0) {
+                            return rc;
+                        }
                     }
                 }
             }

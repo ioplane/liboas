@@ -390,6 +390,15 @@ static const compiled_response_t *find_response(const compiled_operation_t *op, 
         }
     }
 
+    /* Range match: "2XX" matches 200-299, etc. */
+    char range_str[4];
+    (void)snprintf(range_str, sizeof(range_str), "%dXX", status_code / 100);
+    for (size_t i = 0; i < op->responses_count; i++) {
+        if (strcasecmp(op->responses[i].status_code, range_str) == 0) {
+            return &op->responses[i];
+        }
+    }
+
     /* Fallback to "default" */
     for (size_t i = 0; i < op->responses_count; i++) {
         if (strcmp(op->responses[i].status_code, "default") == 0) {
