@@ -1,0 +1,10 @@
+{
+  "Pet": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string" },
+      "id": { "type": "integer" }
+    },
+    "required": ["name", "id"]
+  }
+}

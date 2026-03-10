@@ -150,6 +150,7 @@ add_library(oas_parser STATIC
     src/parser/oas_doc_parser.c
     src/parser/oas_ref.c
     src/parser/oas_ref_cache.c
+    src/parser/oas_ref_file.c
     src/parser/oas_uri.c
 )
 target_include_directories(oas_parser PUBLIC ${CMAKE_SOURCE_DIR}/include)
@@ -240,6 +241,7 @@ add_library(oas STATIC
     src/parser/oas_doc_parser.c
     src/parser/oas_ref.c
     src/parser/oas_ref_cache.c
+    src/parser/oas_ref_file.c
     src/parser/oas_uri.c
     src/compiler/oas_format.c
     src/compiler/oas_instruction.c
@@ -468,6 +470,7 @@ if(BUILD_TESTING)
     oas_add_test(test_uri tests/unit/test_uri.c oas_parser)
     oas_add_test(test_ref tests/unit/test_ref.c oas_parser)
     oas_add_test(test_ref_cache tests/unit/test_ref_cache.c oas_parser)
+    oas_add_test(test_ref_file tests/unit/test_ref_file.c oas_parser)
     oas_add_test(test_ref_conditional tests/unit/test_ref_conditional.c oas_parser)
     oas_add_test(test_regex tests/unit/test_regex.c oas_core)
     oas_add_test(test_format tests/unit/test_format.c oas_compiler)
