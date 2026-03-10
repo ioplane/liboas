@@ -177,7 +177,6 @@ See `.claude/skills/` for detailed guidance on:
 Use context7 to fetch up-to-date documentation:
 - yyjson JSON: `/ibireme/yyjson`
 - libfyaml YAML: `/pantoniou/libfyaml`
-- PCRE2 regex: `/pcre2project/pcre2`
 - QuickJS (libregexp source): `/nicot/quickjs`
 - OpenAPI spec: `/oai/openapi-specification`
 - CMake build: `/websites/cmake_cmake_help`

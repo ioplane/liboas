@@ -274,7 +274,7 @@ struct oas_regex_backend {
 };
 ```
 
-One vtable, multiple implementations (PCRE2, libregexp).
+One vtable, one implementation (QuickJS libregexp for ECMA-262).
 
 ---
 
@@ -365,7 +365,7 @@ static_assert(sizeof(struct hot_data) <= 64, "must fit in cache line");
 #include <sys/types.h>
 
 #include <yyjson.h>               // 5. Third-party
-#include <pcre2.h>
+#include <libregexp.h>
 ```
 
 `_GNU_SOURCE` defined via CMake `target_compile_definitions`, NOT in source files.

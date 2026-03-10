@@ -1,8 +1,8 @@
 # liboas Roadmap: Bugfixes, OAS Coverage, and Framework Backlog
 
-> **Date:** 2026-03-09
-> **Status:** 0.1.0 complete (286 tests, 12 fuzz targets, quality 6/6 PASS)
-> **Base:** Sprint 9 done, PR #1 merged to master
+> **Date:** 2026-03-10 (updated)
+> **Status:** 0.1.0 DONE (389 tests, 12 fuzz targets, ~10.7K LOC, quality 6/6 PASS)
+> **Base:** Sprints 1-16 complete, all merged to master
 
 **Detailed Sprint Plans:**
 - [`2026-03-09-sprint10-bugfixes.md`](2026-03-09-sprint10-bugfixes.md) — Codex review bugfixes (8 tests)
@@ -97,37 +97,39 @@ Minimum requirement: at least one `:` must precede the IPv4 portion (e.g., `::ff
 
 Prioritized by real-world usage frequency and spec compliance impact.
 
-### Tier 1 — Critical for 0.2.0 (required for most real specs)
+### Tier 1 — DONE in 0.1.0
+
+All Tier 1 items completed in Sprints 11-14:
+- 1.1: $ref sibling keywords (Sprint 12)
+- 1.2: Components (responses, parameters, requestBodies, headers) (Sprint 11)
+- 1.3: Response headers (Sprint 13)
+- 1.4: Security requirements (Sprint 11)
+- 1.5: Security schemes (Sprint 11)
+- 1.6: Server variables (Sprint 11)
+- 1.7: Parameter style/explode (Sprint 13)
+- 1.8: Query parameter deserialization (Sprint 13)
+
+### Tier 2 — Partially done in 0.1.0
+
+Done in Sprint 12:
+- 2.1: patternProperties (parse + compile + validate)
+- 2.2: minProperties / maxProperties (parse + compile + validate)
+- 2.3: propertyNames (parse + compile + validate)
+- 2.4: dependentRequired (parse + compile + validate)
+- 2.5: dependentSchemas (parse + compile + validate)
+- 2.6: contains / minContains / maxContains (parse + compile + validate)
+- 2.7: Discriminator compilation (OAS_OP_DISCRIMINATOR opcode)
+
+Remaining for 0.2.0:
 
 | # | Feature | Scope | LOC est. | Tests est. |
 |---|---------|-------|----------|------------|
-| 1.1 | **$ref sibling keywords** (3.1+ compliance) | Parser: remove early return on `$ref`, parse siblings | ~30 | 6 |
-| 1.2 | **Components: responses, parameters, requestBodies, headers** | Parse + Emit + $ref targets | ~200 | 20 |
-| 1.3 | **Response headers** (parse + validate) | Header Object parsing, header validation in VM | ~150 | 12 |
-| 1.4 | **Security requirements** (parse from JSON) | Parse `security` at root and operation levels | ~60 | 8 |
-| 1.5 | **Security schemes** (parse from JSON) | Parse `securitySchemes` in components | ~80 | 10 |
-| 1.6 | **Server variables** (parse from JSON) | Parse `variables` in Server Object | ~40 | 6 |
-| 1.7 | **Parameter style/explode** | Serialization style: `simple`, `form`, `label`, `matrix` | ~200 | 16 |
-| 1.8 | **Query parameter deserialization** | Parse query string per style/explode | ~150 | 14 |
-| | **Tier 1 total** | | **~910** | **92** |
-
-### Tier 2 — Important for 0.3.0 (common schema keywords)
-
-| # | Feature | Scope | LOC est. | Tests est. |
-|---|---------|-------|----------|------------|
-| 2.1 | **patternProperties** | Parse + Compile + Validate | ~80 | 10 |
-| 2.2 | **minProperties / maxProperties** | Parse + Compile + Validate | ~40 | 8 |
-| 2.3 | **propertyNames** | Parse + Compile + Validate | ~50 | 6 |
-| 2.4 | **dependentRequired** | Parse + Compile + Validate | ~60 | 8 |
-| 2.5 | **dependentSchemas** | Parse + Compile + Validate | ~70 | 8 |
-| 2.6 | **contains / minContains / maxContains** | Parse + Compile + Validate | ~80 | 10 |
-| 2.7 | **Discriminator compilation** | OAS_OP_DISCRIMINATOR opcode | ~100 | 8 |
 | 2.8 | **unevaluatedProperties / unevaluatedItems** | Compile + Validate (evaluation tracking) | ~200 | 14 |
 | 2.9 | **Encoding Object** (multipart) | Parse + content type mapping | ~80 | 8 |
 | 2.10 | **Info.summary** | Trivial field addition | ~10 | 2 |
 | 2.11 | **Schema deprecated** | Parse + Emit | ~10 | 2 |
 | 2.12 | **externalDocs** | Parse + Emit at doc/operation/tag/schema levels | ~60 | 8 |
-| | **Tier 2 total** | | **~840** | **92** |
+| | **Tier 2 remaining** | | **~360** | **34** |
 
 ### Tier 3 — Nice-to-have for 0.4.0 (advanced, less common)
 
@@ -173,11 +175,10 @@ Prioritized by real-world usage frequency and spec compliance impact.
 
 | Version | Tests (cumulative) | OAS Coverage |
 |---------|-------------------|-------------|
-| 0.1.0 (current) | 286 | ~50% core, ~30% total |
-| 0.2.0 (Tier 1) | ~378 | ~75% core, ~50% total |
-| 0.3.0 (Tier 2) | ~470 | ~90% core, ~65% total |
-| 0.4.0 (Tier 3) | ~578 | ~95% core, ~80% total |
-| 0.5.0 (Tier 4) | ~652 | ~98%, full 3.2 support |
+| 0.1.0 (done) | 389 | ~75% core, ~50% total |
+| 0.2.0 | ~550 | ~90% core, ~70% total |
+| 0.3.0 | ~700 | ~95% core, ~85% total |
+| 0.4.0 | ~800 | ~98%, full 3.2 support |
 
 ---
 
@@ -240,53 +241,55 @@ liboas as a backend for REST/HTTP API frameworks. Reference: [Huma](https://huma
 | Huma Feature | liboas Status | Plan |
 |---|---|---|
 | Code-first OpenAPI generation | Builder API exists | B1, B2 enhance it |
-| Request validation | Body only (P0 gaps: headers, query, cookies) | F1–F3 |
-| Response validation | Body only | F3 |
-| Content negotiation (JSON, CBOR) | Not implemented | F5, F7 |
+| Request validation | Body + headers + query (Sprint 13) | F14 (multipart), F15 (cookies) |
+| Response validation | Body + headers (Sprint 14) | Done for core |
+| Content negotiation (JSON, CBOR) | Implemented (Sprint 13) | Done |
 | Conditional requests (ETag, 304) | Not implemented | F12 |
-| Error handling (RFC 9457) | Not implemented | F6 |
+| Error handling (RFC 9457) | Implemented (Sprint 13) | Done |
 | Scalar / Swagger UI | Scalar exists | F18, F19 |
 | CLI tooling | Not implemented | F20 |
 | Middleware | Not implemented | F11 |
 | SSE streaming | Not implemented | F13 (with OAS 3.2) |
-| Typed path/query params | Path match exists, no typing | F2, F4 |
+| Typed path/query params | Path match + query parsing (Sprint 13) | F4 (typed params) |
 | Auto-documentation | Builder → emit exists | B1 enhances UX |
 
 ---
 
 ## Release Roadmap
 
-### 0.1.0 — Current (done)
-- 286 tests, 12 fuzz targets
+### 0.1.0 — DONE (2026-03-10)
+- 389 tests, 12 fuzz targets, ~10.7K LOC
 - Core parse → compile → validate pipeline
-- JSON/YAML parse and emit
-- $ref resolution (local)
-- Builder API
-- Scalar UI
+- JSON/YAML parse and emit (libfyaml)
+- $ref resolution (local) with sibling keywords
+- Security schemes, server variables, all component types
+- Header/query parameter validation, content negotiation
+- RFC 9457 Problem Details, discriminator compilation
+- Builder API, iohttp adapter, Scalar UI
+- CMake install (find_package + pkg-config), version API
+- GitHub Actions CI, full docs (EN + RU)
 
-### 0.2.0 — Spec Core + Bugfixes
-- Sprint 10: Codex bugfixes (10 tests)
-- Tier 1 OAS coverage (92 tests)
-- Framework F1–F4, F6, F8 (core request/response features)
-- Target: ~420 tests
-
-### 0.3.0 — Schema Completeness
-- Tier 2 OAS coverage (92 tests)
-- Framework F5, F7, F9–F11, F14–F15
-- Builder enhancements B1–B3, B5
+### 0.2.0 — Remaining Spec Coverage
+- Tier 2 remaining: unevaluatedProperties/Items, Encoding Object, externalDocs
+- Tier 3: Remote $ref (HTTP/HTTPS), file $ref, $dynamicRef/$dynamicAnchor
+- Tier 3: Webhooks, Callbacks, Links, Examples
+- Framework: middleware pipeline, cookie validation, CORS helpers
+- Builder enhancements: fluent macros, schema inference, builder validation
 - Target: ~550 tests
 
-### 0.4.0 — Advanced Features
-- Tier 3 OAS coverage (108 tests)
-- Remote $ref, dynamic refs
-- Framework F12, F16, F20
-- Integration adapters A2–A3
+### 0.3.0 — OAS 3.2 Features + Advanced
+- Tier 4 OAS 3.2 features: query method, additionalOperations, streaming
+- Additional format validators (uri-template, json-pointer, duration)
+- contentEncoding/contentMediaType/contentSchema
+- Integration adapters: generic HTTP, libmicrohttpd
+- CLI tooling (validate, diff, lint)
 - Target: ~700 tests
 
-### 0.5.0 — Full OAS 3.2
-- Tier 4 OAS 3.2 features (74 tests)
-- SSE streaming (F13)
-- All remaining features
+### 0.4.0 — Full OAS 3.2
+- Remaining Tier 4 features
+- Performance benchmarks
+- SSE streaming validation
+- All remaining integration adapters
 - Target: ~800 tests, full spec coverage
 
 ---

@@ -15,7 +15,7 @@ description: Use when implementing JSON Schema 2020-12 validation — type syste
 
 ### string
 - `minLength`, `maxLength`: Unicode codepoint count (not byte length)
-- `pattern`: ECMA-262 regex, **unanchored** match (via `oas_regex_backend_t` vtable: PCRE2 default or libregexp strict)
+- `pattern`: ECMA-262 regex, **unanchored** match (via `oas_regex_backend_t` vtable: vendored QuickJS libregexp, 100% ECMA-262)
 - `format`: date, date-time, time, email, uri, uri-reference, uuid, ipv4, ipv6, hostname
 
 ### number / integer
@@ -70,7 +70,7 @@ description: Use when implementing JSON Schema 2020-12 validation — type syste
 
 - Walk schema tree depth-first, emit flat instruction array
 - **Instructions**: CHECK_TYPE, CHECK_MIN, CHECK_MAX, CHECK_PATTERN, CHECK_FORMAT, CHECK_REQUIRED, CHECK_ENUM, CHECK_CONST, ENTER_OBJECT, ENTER_ARRAY, ENTER_PROPERTY, BRANCH_ALLOF, BRANCH_ONEOF, BRANCH_ANYOF, NEGATE, COND_IF, COND_THEN, COND_ELSE, END
-- Pre-compile regex patterns via `oas_regex_backend_t` vtable (PCRE2 JIT default, libregexp optional) at compile time
+- Pre-compile regex patterns via `oas_regex_backend_t` vtable (QuickJS libregexp, ECMA-262) at compile time
 - Constant-fold: `{"type": "string", "minLength": 0}` becomes just CHECK_TYPE
 - Inline small `$ref` targets into instruction stream, keep pointer for large ones
 - Track "evaluated" properties/items for unevaluatedProperties/unevaluatedItems support

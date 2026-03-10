@@ -20,7 +20,7 @@ Parse OpenAPI 3.2 JSON/YAML into an in-memory document model.
 Pre-compile schemas to validation bytecode for zero-allocation hot path.
 
 **Components:**
-- **Regex Backend**: Vtable `oas_regex_backend_t` — PCRE2 default (~95% ECMA-262), vendored libregexp optional (100%)
+- **Regex Backend**: Vtable `oas_regex_backend_t` — vendored QuickJS libregexp (100% ECMA-262)
 - **Schema Compiler**: Walks schema tree, emits flat instruction array — type checks, format validators, constraint checks, regex via backend vtable
 - **Document Compiler**: `oas_doc_compile()` — compiles all schemas in a parsed+resolved document
 - **Path Matcher**: OpenAPI path template matching with parameter extraction (`/users/{id}`)
@@ -46,7 +46,7 @@ src/compiler/           # Schema pre-compilation
 src/validator/          # Runtime validation engine
 src/emitter/            # JSON/YAML output
 src/adapter/            # iohttp integration
-vendor/libregexp/       # Vendored QuickJS libregexp (optional ECMA-262 regex)
+vendor/libregexp/       # Vendored QuickJS libregexp (ECMA-262 regex)
 tests/unit/             # Unity tests
 tests/integration/      # Full spec tests
 tests/fuzz/             # LibFuzzer targets
@@ -90,7 +90,7 @@ tests/fuzz/             # LibFuzzer targets
 - `oas_schema_t`: JSON Schema node (type, properties, items, allOf/oneOf/anyOf, $ref, discriminator)
 - `oas_discriminator_mapping_t`: Polymorphic discriminator mapping (propertyName + $ref map)
 - `oas_ref_t`: $ref reference (resolved pointer, cycle marker)
-- `oas_regex_backend_t`: Regex vtable — compile/match/free, PCRE2 or libregexp implementation
+- `oas_regex_backend_t`: Regex vtable — compile/match/free, QuickJS libregexp implementation
 - `oas_compiled_schema_t`: Pre-compiled validation program (flat instruction array)
 - `oas_compiled_doc_t`: All schemas in a document compiled together (owns regex backend)
 - `oas_validation_result_t`: Validation outcome (ok/errors list)
