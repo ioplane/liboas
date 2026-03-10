@@ -1,6 +1,7 @@
 #include <liboas/oas_validator.h>
 
 #include "compiler/compiled_doc_internal.h"
+#include "core/oas_cookie.h"
 #include "core/oas_query.h"
 
 #include <errno.h>
@@ -236,6 +237,57 @@ static int validate_path_params(const compiled_param_t *params, size_t params_co
     return 0;
 }
 
+/* Find a cookie value by name (case-sensitive) */
+static const char *find_cookie(const oas_cookie_t *cookies, size_t count, const char *name)
+{
+    for (size_t i = 0; i < count; i++) {
+        if (strcmp(cookies[i].name, name) == 0) {
+            return cookies[i].value;
+        }
+    }
+    return nullptr;
+}
+
+/* Validate cookie parameters for a request */
+static int validate_cookie_params(const compiled_param_t *params, size_t params_count,
+                                  const oas_http_request_t *req, oas_validation_result_t *result,
+                                  oas_arena_t *arena)
+{
+    oas_cookie_t *cookies = nullptr;
+    size_t cookie_count = 0;
+
+    if (req->cookie_header) {
+        int rc = oas_cookie_parse(req->cookie_header, arena, &cookies, &cookie_count);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+
+    for (size_t i = 0; i < params_count; i++) {
+        if (strcmp(params[i].in, "cookie") != 0) {
+            continue;
+        }
+        const char *value = cookies ? find_cookie(cookies, cookie_count, params[i].name) : nullptr;
+        if (!value) {
+            if (params[i].required) {
+                result->valid = false;
+                if (result->errors) {
+                    oas_error_list_add(result->errors, OAS_ERR_REQUIRED, "",
+                                       "required cookie missing: %s", params[i].name);
+                }
+            }
+            continue;
+        }
+        if (params[i].schema) {
+            int rc = validate_param_value(params[i].schema, value, result, arena);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+    }
+    return 0;
+}
+
 int oas_validate_request(const oas_compiled_doc_t *doc, const oas_http_request_t *req,
                          oas_validation_result_t *result, oas_arena_t *arena)
 {
@@ -311,7 +363,7 @@ int oas_validate_request(const oas_compiled_doc_t *doc, const oas_http_request_t
         }
     }
 
-    /* Validate parameters (header, query, path) */
+    /* Validate parameters (header, query, path, cookie) */
     if (op->params_count > 0) {
         rc = validate_header_params(op->params, op->params_count, req, result, arena);
         if (rc < 0) {
@@ -326,6 +378,10 @@ int oas_validate_request(const oas_compiled_doc_t *doc, const oas_http_request_t
             if (rc < 0) {
                 return rc;
             }
+        }
+        rc = validate_cookie_params(op->params, op->params_count, req, result, arena);
+        if (rc < 0) {
+            return rc;
         }
     }
 

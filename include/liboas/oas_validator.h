@@ -103,7 +103,8 @@ typedef struct {
     size_t headers_count;
     const oas_http_query_param_t *query; /**< Query parameters (nullable) */
     size_t query_count;
-    const char *query_string; /**< Raw query string (nullable) */
+    const char *query_string;  /**< Raw query string (nullable) */
+    const char *cookie_header; /**< Raw Cookie header value (nullable) */
 } oas_http_request_t;
 
 typedef struct {

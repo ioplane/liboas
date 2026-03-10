@@ -118,6 +118,7 @@ add_library(oas_core STATIC
     src/core/oas_path_match.c
     src/core/oas_regex_libregexp.c
     src/core/oas_query.c
+    src/core/oas_cookie.c
     src/core/oas_problem.c
     src/core/oas_negotiate.c
     src/core/oas_version.c
@@ -253,6 +254,7 @@ add_library(oas STATIC
     src/core/oas_path_match.c
     src/core/oas_regex_libregexp.c
     src/core/oas_query.c
+    src/core/oas_cookie.c
     src/core/oas_problem.c
     src/core/oas_negotiate.c
     src/core/oas_version.c
@@ -518,6 +520,7 @@ if(BUILD_TESTING)
     oas_add_test(test_schema_keywords tests/unit/test_schema_keywords.c oas_validator oas_parser)
     oas_add_test(test_readwrite tests/unit/test_readwrite.c oas_validator)
     oas_add_test(test_defaults tests/unit/test_defaults.c oas_validator oas_parser)
+    oas_add_test(test_cookie tests/unit/test_cookie.c oas_validator oas_parser)
     oas_add_test(test_ref_remote tests/unit/test_ref_remote.c oas_parser)
     oas_add_test(test_doc_ref_integration tests/unit/test_doc_ref_integration.c oas_parser)
     oas_add_test(test_framework_core tests/unit/test_framework_core.c oas_adapter oas_model)
