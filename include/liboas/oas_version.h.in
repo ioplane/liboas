@@ -1,0 +1,25 @@
+#ifndef LIBOAS_VERSION_H
+#define LIBOAS_VERSION_H
+
+/** @file oas_version.h
+ *  @brief liboas version information (auto-generated from CMake).
+ */
+
+#define OAS_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define OAS_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define OAS_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define OAS_VERSION_STRING "@PROJECT_VERSION@"
+
+/**
+ * @brief Runtime version check.
+ * @return Version string, e.g. "0.1.0".
+ */
+const char *oas_version(void);
+
+/**
+ * @brief Compile-time version number for comparison.
+ * @return OAS_VERSION_MAJOR * 10000 + OAS_VERSION_MINOR * 100 + OAS_VERSION_PATCH
+ */
+int oas_version_number(void);
+
+#endif /* LIBOAS_VERSION_H */

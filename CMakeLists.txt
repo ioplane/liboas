@@ -40,6 +40,13 @@ endif()
 # ── Hardening flags ──────────────────────────────────────────────────────────
 add_link_options(-Wl,-z,relro -Wl,-z,now)
 
+# ── Version header generation ────────────────────────────────────────────────
+configure_file(
+    include/liboas/oas_version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/liboas/oas_version.h
+    @ONLY
+)
+
 # ── Dependencies ─────────────────────────────────────────────────────────────
 find_package(PkgConfig REQUIRED)
 
@@ -82,6 +89,7 @@ macro(oas_add_test TEST_NAME TEST_SRC)
         target_link_libraries(${TEST_NAME} PRIVATE unity ${ARGN})
         target_include_directories(${TEST_NAME} PRIVATE
             ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_BINARY_DIR}/include
             ${CMAKE_SOURCE_DIR}/src
         )
         target_compile_definitions(${TEST_NAME} PRIVATE _GNU_SOURCE)
@@ -112,8 +120,12 @@ add_library(oas_core STATIC
     src/core/oas_query.c
     src/core/oas_problem.c
     src/core/oas_negotiate.c
+    src/core/oas_version.c
 )
-target_include_directories(oas_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(oas_core PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_BINARY_DIR}/include
+)
 target_include_directories(oas_core PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(oas_core PUBLIC _GNU_SOURCE)
 target_include_directories(oas_core PUBLIC ${YYJSON_INCLUDE_DIRS})
@@ -331,6 +343,7 @@ endif()
 # ── Testing ──────────────────────────────────────────────────────────────────
 if(BUILD_TESTING)
     enable_testing()
+    oas_add_test(test_version tests/unit/test_version.c oas_core)
     oas_add_test(test_alloc tests/unit/test_alloc.c oas_core)
     oas_add_test(test_error tests/unit/test_error.c oas_core)
     oas_add_test(test_intern tests/unit/test_intern.c oas_core)
