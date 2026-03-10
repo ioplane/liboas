@@ -313,6 +313,16 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/liboas
 )
 
+# ── pkg-config ───────────────────────────────────────────────────────────────
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/liboas.pc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/liboas.pc
+    @ONLY
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liboas.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
+
 # ── Code quality targets ────────────────────────────────────────────────────
 
 # clang-format
