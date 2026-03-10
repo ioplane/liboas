@@ -215,6 +215,104 @@ target_include_directories(oas_adapter PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_adapter PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(oas_adapter PUBLIC oas_validator oas_parser oas_emitter oas_model oas_core)
 
+# ── Combined shared library for installation ─────────────────────────────────
+include(GNUInstallDirs)
+
+add_library(oas STATIC
+    src/core/oas_alloc.c
+    src/core/oas_error.c
+    src/core/oas_intern.c
+    src/core/oas_jsonptr.c
+    src/core/oas_path_match.c
+    src/core/oas_regex_libregexp.c
+    src/core/oas_query.c
+    src/core/oas_problem.c
+    src/core/oas_negotiate.c
+    src/core/oas_version.c
+    src/model/oas_schema.c
+    src/model/oas_doc.c
+    src/model/oas_schema_builder.c
+    src/model/oas_doc_builder.c
+    src/parser/oas_json.c
+    src/parser/oas_schema_parser.c
+    src/parser/oas_doc_parser.c
+    src/parser/oas_ref.c
+    src/compiler/oas_format.c
+    src/compiler/oas_instruction.c
+    src/compiler/oas_compiler.c
+    src/compiler/oas_doc_compiler.c
+    src/validator/oas_validator.c
+    src/validator/oas_request.c
+    src/emitter/oas_emitter.c
+    src/adapter/oas_adapter.c
+    src/adapter/oas_scalar.c
+    vendor/libregexp/libregexp.c
+    vendor/libregexp/libunicode.c
+)
+set_target_properties(oas PROPERTIES
+    OUTPUT_NAME oas
+)
+set_source_files_properties(
+    vendor/libregexp/libregexp.c
+    vendor/libregexp/libunicode.c
+    TARGET_DIRECTORY oas
+    PROPERTIES COMPILE_OPTIONS "-w"
+)
+target_include_directories(oas PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_include_directories(oas PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/vendor/libregexp
+)
+target_compile_definitions(oas PRIVATE _GNU_SOURCE)
+target_include_directories(oas PUBLIC ${YYJSON_INCLUDE_DIRS})
+target_link_directories(oas PUBLIC ${YYJSON_LIBRARY_DIRS})
+target_link_libraries(oas PUBLIC ${YYJSON_LIBRARIES})
+target_link_libraries(oas PRIVATE m)
+
+# ── Install rules ────────────────────────────────────────────────────────────
+install(TARGETS oas
+    EXPORT liboasTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/liboas/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/liboas
+    FILES_MATCHING PATTERN "*.h"
+    PATTERN "*.h.in" EXCLUDE
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/liboas/oas_version.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/liboas
+)
+
+install(EXPORT liboasTargets
+    FILE liboasTargets.cmake
+    NAMESPACE liboas::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/liboas
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    cmake/liboasConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/liboasConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/liboas
+)
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/liboasConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/liboasConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/liboasConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/liboas
+)
+
 # ── Code quality targets ────────────────────────────────────────────────────
 
 # clang-format
