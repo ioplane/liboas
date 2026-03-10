@@ -56,6 +56,8 @@ typedef enum : uint8_t {
     OAS_OP_CHECK_DEP_REQUIRED,
     OAS_OP_CHECK_DEP_SCHEMA,
     OAS_OP_CHECK_CONTAINS,
+    OAS_OP_CHECK_READ_ONLY,
+    OAS_OP_CHECK_WRITE_ONLY,
     OAS_OP_END,
     OAS_OP_COUNT_,
 } oas_opcode_t;

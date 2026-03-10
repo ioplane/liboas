@@ -564,6 +564,20 @@ static int compile_schema(oas_compiled_schema_t *cs, const oas_schema_t *schema,
         }
     }
 
+    /* readOnly / writeOnly enforcement (direction-aware at validation time) */
+    if (schema->read_only) {
+        rc = emit_simple(prog, OAS_OP_CHECK_READ_ONLY);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+    if (schema->write_only) {
+        rc = emit_simple(prog, OAS_OP_CHECK_WRITE_ONLY);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+
     return 0;
 }
 

@@ -304,7 +304,8 @@ int oas_validate_request(const oas_compiled_doc_t *doc, const oas_http_request_t
             return 0;
         }
 
-        rc = oas_validate_json(mt->schema, req->body, req->body_len, result, arena);
+        rc = oas_validate_json_with_direction(mt->schema, req->body, req->body_len, OAS_DIR_REQUEST,
+                                              result, arena);
         if (rc < 0) {
             return rc;
         }
@@ -434,7 +435,8 @@ int oas_validate_response(const oas_compiled_doc_t *doc, const char *path, const
             return 0;
         }
 
-        rc = oas_validate_json(mt->schema, resp->body, resp->body_len, result, arena);
+        rc = oas_validate_json_with_direction(mt->schema, resp->body, resp->body_len,
+                                              OAS_DIR_RESPONSE, result, arena);
         if (rc < 0) {
             return rc;
         }

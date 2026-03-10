@@ -18,6 +18,12 @@
 
 #include <yyjson.h>
 
+typedef enum {
+    OAS_DIR_NONE = 0,    /**< Standalone validation (ignore readOnly/writeOnly) */
+    OAS_DIR_REQUEST = 1, /**< Request validation: reject readOnly fields */
+    OAS_DIR_RESPONSE = 2 /**< Response validation: reject writeOnly fields */
+} oas_validation_direction_t;
+
 typedef struct {
     bool valid;
     oas_error_list_t *errors;
@@ -56,6 +62,36 @@ typedef struct {
 [[nodiscard]] int oas_validate_json(const oas_compiled_schema_t *compiled, const char *json,
                                     size_t len, oas_validation_result_t *result,
                                     oas_arena_t *arena);
+
+/**
+ * @brief Validate a yyjson value with direction context.
+ * @param compiled  Compiled schema bytecode.
+ * @param value     JSON value to validate.
+ * @param direction Validation direction (request/response/none).
+ * @param result    Receives validation outcome and errors.
+ * @param arena     Arena for error allocations.
+ * @return 0 on success, negative errno on invalid arguments.
+ */
+[[nodiscard]] int oas_validate_with_direction(const oas_compiled_schema_t *compiled,
+                                              yyjson_val *value,
+                                              oas_validation_direction_t direction,
+                                              oas_validation_result_t *result, oas_arena_t *arena);
+
+/**
+ * @brief Parse JSON string and validate with direction context.
+ * @param compiled  Compiled schema bytecode.
+ * @param json      JSON string to parse and validate.
+ * @param len       Length of JSON string in bytes.
+ * @param direction Validation direction (request/response/none).
+ * @param result    Receives validation outcome and errors.
+ * @param arena     Arena for error allocations.
+ * @return 0 on success, negative errno on invalid arguments or parse failure.
+ */
+[[nodiscard]] int oas_validate_json_with_direction(const oas_compiled_schema_t *compiled,
+                                                   const char *json, size_t len,
+                                                   oas_validation_direction_t direction,
+                                                   oas_validation_result_t *result,
+                                                   oas_arena_t *arena);
 
 typedef struct {
     const char *method;       /**< HTTP method (GET, POST, etc.) */

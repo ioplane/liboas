@@ -91,6 +91,7 @@ typedef struct {
     oas_error_list_t *errors;
     oas_arena_t *arena;
     oas_regex_backend_t *regex;
+    oas_validation_direction_t direction;
     bool valid;
 } vm_state_t;
 
@@ -764,6 +765,20 @@ static void execute(vm_state_t *vm)
             break;
         }
 
+        case OAS_OP_CHECK_READ_ONLY: {
+            if (vm->direction == OAS_DIR_REQUEST) {
+                add_error(vm, "readOnly property not allowed in request");
+            }
+            break;
+        }
+
+        case OAS_OP_CHECK_WRITE_ONLY: {
+            if (vm->direction == OAS_DIR_RESPONSE) {
+                add_error(vm, "writeOnly property not allowed in response");
+            }
+            break;
+        }
+
         default:
             break;
         }
@@ -772,6 +787,19 @@ static void execute(vm_state_t *vm)
 
 int oas_validate(const oas_compiled_schema_t *compiled, yyjson_val *value,
                  oas_validation_result_t *result, oas_arena_t *arena)
+{
+    return oas_validate_with_direction(compiled, value, OAS_DIR_NONE, result, arena);
+}
+
+int oas_validate_json(const oas_compiled_schema_t *compiled, const char *json, size_t len,
+                      oas_validation_result_t *result, oas_arena_t *arena)
+{
+    return oas_validate_json_with_direction(compiled, json, len, OAS_DIR_NONE, result, arena);
+}
+
+int oas_validate_with_direction(const oas_compiled_schema_t *compiled, yyjson_val *value,
+                                oas_validation_direction_t direction,
+                                oas_validation_result_t *result, oas_arena_t *arena)
 {
     if (!compiled || !value || !result) {
         return -EINVAL;
@@ -794,6 +822,7 @@ int oas_validate(const oas_compiled_schema_t *compiled, yyjson_val *value,
         .errors = result->errors,
         .arena = arena,
         .regex = get_regex(compiled),
+        .direction = direction,
         .valid = true,
     };
 
@@ -803,8 +832,9 @@ int oas_validate(const oas_compiled_schema_t *compiled, yyjson_val *value,
     return 0;
 }
 
-int oas_validate_json(const oas_compiled_schema_t *compiled, const char *json, size_t len,
-                      oas_validation_result_t *result, oas_arena_t *arena)
+int oas_validate_json_with_direction(const oas_compiled_schema_t *compiled, const char *json,
+                                     size_t len, oas_validation_direction_t direction,
+                                     oas_validation_result_t *result, oas_arena_t *arena)
 {
     if (!compiled || !json || !result) {
         return -EINVAL;
@@ -816,7 +846,7 @@ int oas_validate_json(const oas_compiled_schema_t *compiled, const char *json, s
     }
 
     yyjson_val *root = yyjson_doc_get_root(doc);
-    int rc = oas_validate(compiled, root, result, arena);
+    int rc = oas_validate_with_direction(compiled, root, direction, result, arena);
 
     yyjson_doc_free(doc);
     return rc;
