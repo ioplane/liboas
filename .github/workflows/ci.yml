@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build-clang:
+    name: Clang ${{ matrix.preset }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ioplane/liboas-dev:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [clang-debug, clang-asan]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+  build-gcc:
+    name: GCC debug
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ioplane/liboas-dev:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Configure
+        run: cmake --preset gcc-debug
+
+      - name: Build
+        run: cmake --build --preset gcc-debug
+
+      - name: Test
+        run: ctest --preset gcc-debug --output-on-failure
+
+  format-check:
+    name: clang-format
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ioplane/liboas-dev:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake --preset clang-debug
+      - run: cmake --build --preset clang-debug --target format-check
+
+  static-analysis:
+    name: cppcheck
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ioplane/liboas-dev:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake --preset clang-debug
+      - run: cmake --build --preset clang-debug --target cppcheck
