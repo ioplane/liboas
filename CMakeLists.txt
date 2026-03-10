@@ -194,6 +194,28 @@ if(OAS_YAML)
     target_compile_definitions(oas_yaml PRIVATE _GNU_SOURCE)
 endif()
 
+# ── Optional TLS support for HTTPS $ref fetching ────────────────────────────
+option(OAS_TLS "Enable TLS for HTTPS $ref fetching" OFF)
+set(OAS_TLS_BACKEND "wolfssl" CACHE STRING "TLS backend: wolfssl, openssl")
+if(OAS_TLS)
+    if(OAS_TLS_BACKEND STREQUAL "wolfssl")
+        find_package(wolfssl REQUIRED)
+        add_library(oas_tls STATIC src/parser/oas_tls_wolfssl.c)
+        target_include_directories(oas_tls PRIVATE ${CMAKE_SOURCE_DIR}/src)
+        target_link_libraries(oas_tls PRIVATE wolfssl::wolfssl)
+    elseif(OAS_TLS_BACKEND STREQUAL "openssl")
+        find_package(OpenSSL REQUIRED)
+        add_library(oas_tls STATIC src/parser/oas_tls_openssl.c)
+        target_include_directories(oas_tls PRIVATE ${CMAKE_SOURCE_DIR}/src)
+        target_link_libraries(oas_tls PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    else()
+        message(FATAL_ERROR "Unknown OAS_TLS_BACKEND: ${OAS_TLS_BACKEND}")
+    endif()
+    target_compile_definitions(oas_tls PRIVATE _GNU_SOURCE)
+    target_compile_definitions(oas_parser PRIVATE OAS_HAS_TLS)
+    target_link_libraries(oas_parser PRIVATE oas_tls)
+endif()
+
 # Emitter library: JSON/YAML emission
 set(OAS_EMITTER_SOURCES src/emitter/oas_emitter.c)
 if(OAS_YAML)
@@ -280,6 +302,11 @@ target_include_directories(oas PUBLIC ${YYJSON_INCLUDE_DIRS})
 target_link_directories(oas PUBLIC ${YYJSON_LIBRARY_DIRS})
 target_link_libraries(oas PUBLIC ${YYJSON_LIBRARIES})
 target_link_libraries(oas PRIVATE m)
+
+if(OAS_TLS)
+    target_compile_definitions(oas PRIVATE OAS_HAS_TLS)
+    target_link_libraries(oas PRIVATE oas_tls)
+endif()
 
 # ── Install rules ────────────────────────────────────────────────────────────
 install(TARGETS oas

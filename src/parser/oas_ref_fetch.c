@@ -10,6 +10,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#ifdef OAS_HAS_TLS
+#    include "oas_tls.h"
+#endif
+
 /** Default timeout: 30 seconds */
 constexpr int OAS_REF_FETCH_DEFAULT_TIMEOUT_MS = 30000;
 
@@ -23,21 +27,32 @@ constexpr int OAS_REF_FETCH_DEFAULT_MAX_REDIRECTS = 5;
 constexpr size_t OAS_REF_FETCH_INIT_BUF = 4096;
 
 /**
- * Parse an HTTP URL into host, port, and path components.
- * Only supports http:// scheme. Returns -ENOTSUP for https://.
+ * Parse an HTTP/HTTPS URL into host, port, and path components.
+ * Sets *is_https when the URL uses the https:// scheme.
+ * Returns -ENOTSUP for https:// when TLS is not compiled in.
  */
 static int parse_http_url(const char *url, char *host, size_t host_len, char *port, size_t port_len,
-                          const char **path_out)
+                          const char **path_out, bool *is_https)
 {
-    if (strncmp(url, "https://", 8) == 0) {
-        return -ENOTSUP;
-    }
+    *is_https = false;
 
-    if (strncmp(url, "http://", 7) != 0) {
+    const char *host_start;
+    const char *default_port;
+
+    if (strncmp(url, "https://", 8) == 0) {
+#ifdef OAS_HAS_TLS
+        host_start = url + 8;
+        default_port = "443";
+        *is_https = true;
+#else
+        return -ENOTSUP;
+#endif
+    } else if (strncmp(url, "http://", 7) == 0) {
+        host_start = url + 7;
+        default_port = "80";
+    } else {
         return -EINVAL;
     }
-
-    const char *host_start = url + 7;
 
     /* Reject URLs with embedded CR/LF (HTTP header injection prevention) */
     for (const char *c = host_start; *c; c++) {
@@ -77,7 +92,7 @@ static int parse_http_url(const char *url, char *host, size_t host_len, char *po
         memcpy(port, port_start, plen);
         port[plen] = '\0';
     } else {
-        (void)snprintf(port, port_len, "80");
+        (void)snprintf(port, port_len, "%s", default_port);
     }
 
     /* Path defaults to "/" */
@@ -151,18 +166,24 @@ static int parse_status_code(const char *status_line)
 }
 
 /**
- * Perform a single HTTP GET request and return the response body.
+ * Perform a single HTTP(S) GET request and return the response body.
  * Does NOT follow redirects — caller handles that.
+ * When use_tls is true, wraps the socket with TLS before send/recv.
  */
-static int do_http_get(const char *host, const char *port, const char *path, int timeout_ms,
-                       size_t max_size, int *status_out, char **redirect_url, char **out_data,
-                       size_t *out_len)
+static int do_http_get(const char *host, const char *port, const char *path, bool use_tls,
+                       int timeout_ms, size_t max_size, int *status_out, char **redirect_url,
+                       char **out_data, size_t *out_len)
 {
     int rc = 0;
     int sockfd = -1;
     char *buf = nullptr;
     struct addrinfo hints = {0};
     struct addrinfo *res = nullptr;
+#ifdef OAS_HAS_TLS
+    oas_tls_ctx_t *tls = nullptr;
+#else
+    (void)use_tls;
+#endif
 
     *status_out = 0;
     *redirect_url = nullptr;
@@ -197,6 +218,21 @@ static int do_http_get(const char *host, const char *port, const char *path, int
         goto cleanup;
     }
 
+#ifdef OAS_HAS_TLS
+    /* Establish TLS session for HTTPS connections */
+    if (use_tls) {
+        tls = oas_tls_create();
+        if (!tls) {
+            rc = -ENOMEM;
+            goto cleanup;
+        }
+        rc = oas_tls_connect(tls, sockfd, host);
+        if (rc < 0) {
+            goto cleanup;
+        }
+    }
+#endif
+
     /* Send HTTP request */
     {
         char request[2048];
@@ -212,11 +248,23 @@ static int do_http_get(const char *host, const char *port, const char *path, int
             goto cleanup;
         }
 
-        ssize_t sent = send(sockfd, request, (size_t)req_len, 0);
-        if (sent < 0 || (size_t)sent != (size_t)req_len) {
-            rc = (sent < 0) ? -errno : -EIO;
-            goto cleanup;
+#ifdef OAS_HAS_TLS
+        if (tls) {
+            int written = oas_tls_write(tls, request, (size_t)req_len);
+            if (written < 0 || (size_t)written != (size_t)req_len) {
+                rc = (written < 0) ? written : -EIO;
+                goto cleanup;
+            }
+        } else {
+#endif
+            ssize_t sent = send(sockfd, request, (size_t)req_len, 0);
+            if (sent < 0 || (size_t)sent != (size_t)req_len) {
+                rc = (sent < 0) ? -errno : -EIO;
+                goto cleanup;
+            }
+#ifdef OAS_HAS_TLS
         }
+#endif
     }
 
     /* Read response */
@@ -245,7 +293,17 @@ static int do_http_get(const char *host, const char *port, const char *path, int
                 buf_size = new_size;
             }
 
-            ssize_t n = recv(sockfd, buf + total, buf_size - total - 1, 0);
+            int n;
+#ifdef OAS_HAS_TLS
+            if (tls) {
+                n = oas_tls_read(tls, buf + total, buf_size - total - 1);
+            } else {
+#endif
+                ssize_t rn = recv(sockfd, buf + total, buf_size - total - 1, 0);
+                n = (int)rn;
+#ifdef OAS_HAS_TLS
+            }
+#endif
             if (n < 0) {
                 rc = -errno;
                 goto cleanup;
@@ -302,6 +360,9 @@ static int do_http_get(const char *host, const char *port, const char *path, int
 
 cleanup:
     free(buf);
+#ifdef OAS_HAS_TLS
+    oas_tls_destroy(tls);
+#endif
     if (res) {
         freeaddrinfo(res);
     }
@@ -344,8 +405,9 @@ int oas_ref_fetch_http(const char *url, int timeout_ms, size_t max_size, int max
         char host[256];
         char port[8];
         const char *path;
+        bool is_https;
 
-        rc = parse_http_url(current_url, host, sizeof(host), port, sizeof(port), &path);
+        rc = parse_http_url(current_url, host, sizeof(host), port, sizeof(port), &path, &is_https);
         if (rc < 0) {
             goto done;
         }
@@ -353,8 +415,8 @@ int oas_ref_fetch_http(const char *url, int timeout_ms, size_t max_size, int max
         int status = 0;
         char *redirect_url = nullptr;
 
-        rc = do_http_get(host, port, path, timeout_ms, max_size, &status, &redirect_url, out_data,
-                         out_len);
+        rc = do_http_get(host, port, path, is_https, timeout_ms, max_size, &status, &redirect_url,
+                         out_data, out_len);
         if (rc < 0) {
             free(redirect_url);
             goto done;
