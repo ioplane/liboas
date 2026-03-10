@@ -142,6 +142,17 @@
         "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -g",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
       }
+    },
+    {
+      "name": "clang-coverage",
+      "displayName": "Clang Coverage (llvm-cov)",
+      "description": "Debug build with source-based code coverage instrumentation",
+      "inherits": "clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fprofile-instr-generate -fcoverage-mapping -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fprofile-instr-generate -fuse-ld=mold"
+      }
     }
   ],
   "buildPresets": [
@@ -178,6 +189,11 @@
     {
       "name": "gcc-release",
       "configurePreset": "gcc-release",
+      "jobs": 0
+    },
+    {
+      "name": "clang-coverage",
+      "configurePreset": "clang-coverage",
       "jobs": 0
     }
   ],
@@ -216,6 +232,14 @@
     {
       "name": "gcc-debug",
       "configurePreset": "gcc-debug",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "clang-coverage",
+      "configurePreset": "clang-coverage",
       "output": {
         "outputOnFailure": true,
         "verbosity": "default"
