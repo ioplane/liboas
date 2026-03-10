@@ -19,6 +19,9 @@
 #include <stddef.h>
 
 typedef struct oas_ref_ctx oas_ref_ctx_t;
+
+/* User-provided fetch callback */
+typedef int (*oas_ref_fetch_fn)(void *ctx, const char *url, char **out_data, size_t *out_len);
 typedef struct oas_ref_cache oas_ref_cache_t;
 
 /**
@@ -66,5 +69,18 @@ typedef struct oas_ref_cache oas_ref_cache_t;
 [[nodiscard]] int oas_ref_load_file(const char *path, const char *base_dir, oas_ref_cache_t *cache,
                                     size_t max_size, yyjson_val **root_out,
                                     oas_error_list_t *errors);
+
+/**
+ * @brief Fetch document via HTTP (built-in POSIX sockets).
+ * @param url           Full HTTP URL
+ * @param timeout_ms    Timeout in milliseconds (0 = default 30000)
+ * @param max_size      Max response size (0 = default 10 MB)
+ * @param max_redirects Max redirect hops (0 = default 5)
+ * @param out_data      Output: malloc-allocated response body (caller frees)
+ * @param out_len       Output: response body length
+ * @return 0 on success, negative errno on error
+ */
+[[nodiscard]] int oas_ref_fetch_http(const char *url, int timeout_ms, size_t max_size,
+                                     int max_redirects, char **out_data, size_t *out_len);
 
 #endif /* LIBOAS_PARSER_REF_H */
