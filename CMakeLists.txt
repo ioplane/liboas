@@ -173,6 +173,7 @@ target_link_libraries(oas_compiler PUBLIC oas_core oas_model)
 add_library(oas_validator STATIC
     src/validator/oas_validator.c
     src/validator/oas_request.c
+    src/validator/oas_defaults.c
 )
 target_include_directories(oas_validator PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(oas_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -273,6 +274,7 @@ add_library(oas STATIC
     src/compiler/oas_doc_compiler.c
     src/validator/oas_validator.c
     src/validator/oas_request.c
+    src/validator/oas_defaults.c
     src/emitter/oas_emitter.c
     src/adapter/oas_adapter.c
     src/adapter/oas_scalar.c
@@ -515,6 +517,7 @@ if(BUILD_TESTING)
     oas_add_test(test_doc_compiler tests/unit/test_doc_compiler.c oas_validator oas_parser)
     oas_add_test(test_schema_keywords tests/unit/test_schema_keywords.c oas_validator oas_parser)
     oas_add_test(test_readwrite tests/unit/test_readwrite.c oas_validator)
+    oas_add_test(test_defaults tests/unit/test_defaults.c oas_validator oas_parser)
     oas_add_test(test_ref_remote tests/unit/test_ref_remote.c oas_parser)
     oas_add_test(test_doc_ref_integration tests/unit/test_doc_ref_integration.c oas_parser)
     oas_add_test(test_framework_core tests/unit/test_framework_core.c oas_adapter oas_model)

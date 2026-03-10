@@ -140,4 +140,40 @@ typedef struct {
                                         const char *method, const oas_http_response_t *resp,
                                         oas_validation_result_t *result, oas_arena_t *arena);
 
+/**
+ * @brief Apply default values from a schema to a JSON object (recursive).
+ *
+ * For each property in the schema that has a default_value and is missing
+ * from the object, inserts the default. Recurses into nested objects.
+ *
+ * @param schema  Source schema with default values.
+ * @param json    JSON string to apply defaults to.
+ * @param len     Length of JSON string in bytes.
+ * @param out_body  Output: modified body JSON with defaults applied (caller frees with free()).
+ * @param out_len   Output: modified body length.
+ * @return 0 on success, negative errno on error.
+ */
+[[nodiscard]] int oas_apply_defaults(const oas_schema_t *schema, const char *json, size_t len,
+                                     char **out_body, size_t *out_len);
+
+/**
+ * @brief Validate request and apply default values from schema.
+ *
+ * Creates a mutable copy of the request body JSON, applies default values
+ * for missing fields, validates, and returns the modified body.
+ *
+ * @param doc       Compiled document.
+ * @param req       HTTP request (body will NOT be modified).
+ * @param result    Validation result.
+ * @param arena     Arena for error allocation.
+ * @param out_body  Output: modified body JSON with defaults applied (caller frees with free()).
+ * @param out_len   Output: modified body length.
+ * @return 0 on success, negative errno on error.
+ */
+[[nodiscard]] int oas_validate_request_with_defaults(const oas_compiled_doc_t *doc,
+                                                     const oas_http_request_t *req,
+                                                     oas_validation_result_t *result,
+                                                     oas_arena_t *arena, char **out_body,
+                                                     size_t *out_len);
+
 #endif /* LIBOAS_OAS_VALIDATOR_H */

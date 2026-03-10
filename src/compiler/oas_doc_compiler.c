@@ -60,6 +60,7 @@ static int compile_media_types(oas_compiled_doc_t *cdoc, const oas_media_type_en
 
         arr[compiled].content_type = entries[i].key;
         arr[compiled].schema = cs;
+        arr[compiled].source_schema = entries[i].value->schema;
         compiled++;
     }
 

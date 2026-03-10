@@ -16,6 +16,7 @@
 typedef struct {
     const char *content_type;
     oas_compiled_schema_t *schema;
+    const oas_schema_t *source_schema; /**< Original schema for default application */
 } compiled_media_type_t;
 
 typedef struct {
