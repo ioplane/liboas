@@ -1,0 +1,32 @@
+name: Bug Report
+description: Report a bug in liboas
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: input
+    id: version
+    attributes:
+      label: liboas version
+      placeholder: "0.1.0"
+  - type: input
+    id: compiler
+    attributes:
+      label: Compiler and version
+      placeholder: "Clang 22.1.0"
