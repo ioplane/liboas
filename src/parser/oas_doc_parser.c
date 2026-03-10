@@ -7,6 +7,7 @@
 
 #include "oas_json.h"
 #include "oas_ref.h"
+#include "oas_ref_cache.h"
 #include "oas_schema_parser.h"
 
 static oas_info_t *parse_info(oas_arena_t *arena, yyjson_val *obj,
@@ -808,7 +809,8 @@ static bool check_openapi_version(const char *version)
     return version[0] == '3' && version[1] == '.';
 }
 
-oas_doc_t *oas_doc_parse(oas_arena_t *arena, const char *json, size_t len, oas_error_list_t *errors)
+oas_doc_t *oas_doc_parse_ex(oas_arena_t *arena, const char *json, size_t len,
+                            const oas_ref_options_t *ref_opts, oas_error_list_t *errors)
 {
     if (!arena || !json) {
         return nullptr;
@@ -967,10 +969,25 @@ oas_doc_t *oas_doc_parse(oas_arena_t *arena, const char *json, size_t len, oas_e
     /* Resolve all $ref in the document */
     oas_ref_ctx_t *ref_ctx = oas_ref_ctx_create(arena, jdoc.root);
     if (ref_ctx) {
+        /* Set up extended options if provided */
+        oas_ref_cache_t *cache = nullptr;
+        if (ref_opts) {
+            int max_docs = ref_opts->max_documents > 0 ? ref_opts->max_documents : 100;
+            cache = oas_ref_cache_create(max_docs);
+            oas_ref_ctx_set_options(ref_ctx, ref_opts, cache);
+        }
+
         (void)oas_ref_resolve_all(ref_ctx, doc, errors);
+
+        oas_ref_cache_destroy(cache);
     }
 
     return doc;
+}
+
+oas_doc_t *oas_doc_parse(oas_arena_t *arena, const char *json, size_t len, oas_error_list_t *errors)
+{
+    return oas_doc_parse_ex(arena, json, len, nullptr, errors);
 }
 
 oas_doc_t *oas_doc_parse_file(oas_arena_t *arena, const char *path, oas_error_list_t *errors)

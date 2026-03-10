@@ -12,6 +12,7 @@
 #include <liboas/oas_alloc.h>
 #include <liboas/oas_doc.h>
 #include <liboas/oas_error.h>
+#include <liboas/oas_parser.h>
 #include <liboas/oas_schema.h>
 
 #include <yyjson.h>
@@ -20,8 +21,6 @@
 
 typedef struct oas_ref_ctx oas_ref_ctx_t;
 
-/* User-provided fetch callback */
-typedef int (*oas_ref_fetch_fn)(void *ctx, const char *url, char **out_data, size_t *out_len);
 typedef struct oas_ref_cache oas_ref_cache_t;
 
 /**
@@ -31,6 +30,15 @@ typedef struct oas_ref_cache oas_ref_cache_t;
  * @return Context, or nullptr on failure.
  */
 [[nodiscard]] oas_ref_ctx_t *oas_ref_ctx_create(oas_arena_t *arena, yyjson_val *root);
+
+/**
+ * @brief Attach extended options, cache, and fetch context to a ref context.
+ * @param ctx     Resolution context.
+ * @param options Ref resolution options.
+ * @param cache   Document cache.
+ */
+void oas_ref_ctx_set_options(oas_ref_ctx_t *ctx, const oas_ref_options_t *options,
+                             oas_ref_cache_t *cache);
 
 /**
  * @brief Resolve a single $ref string to a yyjson value.
