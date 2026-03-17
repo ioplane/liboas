@@ -25,7 +25,9 @@ cmake --build --preset clang-debug --target docs         # Doxygen
 
 ## Dev Container
 
-- **Image**: `localhost/liboas-dev:latest` (standalone from oraclelinux:10)
+- Base image: `podman build -t ioplane-base:latest -f /opt/projects/repositories/container-images/tools/ioplane-base/Containerfile .`
+- All `io*` projects share `localhost/ioplane-base:latest` as the common toolchain layer.
+- **Image**: `localhost/liboas-dev:latest`
 - **Containerfile**: `deploy/podman/Containerfile.dev` (build: `make -C deploy/podman build-dev`)
 - **Compilers**: Clang 22.1.0 (primary), GCC 15.1.1 (gcc-toolset-15, validation)
 - **System GCC**: 14.3.1 (OL10 default)
