@@ -20,6 +20,19 @@ presence does not establish the complete network/file trust policy. The old road
 still propose features whose source is already present; validate actual behavior before
 creating another implementation.
 
+## W0: image and external-validator entry (2026-10-26)
+
+Source `383ca8a8f4548dd817ea28728c13bf510afdd3f3`: job `121827118911`
+/ run `40395441473` cannot pull `ghcr.io/ioplane/liboas-dev:latest`
+(`manifest unknown`) and stops before compilation. Qualify the exact image
+identity and authorized CI readback before build/product claims; tag visibility
+and registry policy need verification. Separately, validator job `121827117924`
+/ run `40395441500` reports `attribute openapi is unexpected` and
+`attribute swagger is missing` for `tests/fixtures/petstore.json`. Verify the
+selected external validator/input dialect before attributing those symptoms to
+application semantics. Workflow, recipe and fixture bytes are unchanged;
+old pull-failure annotations exist, while full historical logs return HTTP 410.
+
 ## Next functional slice
 
 Qualify bounded external-reference resolution from parse options through cache and model
