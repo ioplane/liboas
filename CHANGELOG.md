@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+### Added
+
+- Dated 2026-10-26 development plan with current source/PR boundaries, next functional slice, admission evidence, measured CI entry blockers and planned GitLab import handoff.
+
 ## [0.1.0] - 2026-03-10
 
 ### Added
