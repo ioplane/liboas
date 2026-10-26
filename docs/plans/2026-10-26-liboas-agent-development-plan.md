@@ -56,6 +56,17 @@ routing and application authorization outside the OAS core. iohttp integration c
 the adapter only after the iohttp contract is qualified; keep the existing regex/YAML
 choices. ngtun's crypto/profile/session policy is not a dependency or replacement here.
 
+## Planned GitLab handoff
+
+The owner plans import to `https://gitlab.infra4.dev/ioplane/network/liboas`;
+import completion is unverified. This GitHub PR is a pre-import transferable
+patchset: retain its exact base/head and parent history. After the owner import,
+bind actual GitLab project ID, default SHA/refs and reviews, compare history,
+and read the post-import contribution contract. Future implementation uses the
+accepted GitLab destination after CI, registry, ACL and host-identity receipts;
+the GitHub publication rules below describe only pre-import delivery. This plan
+performs no import, group transfer, remote/config change or PR closure.
+
 ## Publication contract
 
 Follow the existing `master` PR and full container quality policy, with exact compiler,
