@@ -76,6 +76,8 @@ graph TB
 - iohttp adapter for automatic route validation
 - Scalar UI integration for API documentation
 
+Current development plan: [liboas agent development plan, 2026-10-26](docs/plans/2026-10-26-liboas-agent-development-plan.md).
+
 ## Documentation
 
 Full documentation is available in [`docs/`](docs/README.md):
